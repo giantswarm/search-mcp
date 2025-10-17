@@ -12,35 +12,39 @@ An experimental MCP (Model Context Protocol) server that provides AI assistants 
 
 ## Quick Start
 
-### Installation
+### Cursor
 
-```bash
-# Setup up virtual environment
-python3 -m venv .venv
+1. Open Settings → Tools & MCP
+2. Click **New MCP Server**
+3. Edit the settings like this:
 
-# Load virtual environment
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the server
-python server.py
+```json
+"giantswarm-search": {
+   "command": "docker",
+   "args": [
+      "run",
+      "-i",
+      "--rm",
+      "-e",
+      "INTRANET_SESSION_COOKIE",
+      "gsoci.azurecr.io/giantswarm/search-mcp:latest0.0.1"
+   ],
+   "env": {
+      "INTRANET_SESSION_COOKIE": "..."
+   }
+}
 ```
 
-**That's it!** The server is now running and you can search public documentation without any additional setup.
+Note that `INTRANET_SESSION_COOKIE` is only required if you want to access intranet content. Read on for instructions on how to obtain the right value.
 
-### Optional: Enable Intranet Access
+### Optional: Authenticate for intranet access
 
 To access internal Giant Swarm resources, set up authentication:
 
 1. Visit [intranet.giantswarm.io](https://intranet.giantswarm.io/) and login with GitHub
 2. Open browser Developer Tools (F12) → Application → Cookies
 3. Copy the `_oauth2_proxy` cookie value
-4. Set environment variable:
-   ```bash
-   export INTRANET_SESSION_COOKIE="your_oauth2_proxy_cookie_value"
-   ```
+4. Set INTRANET_SESSION_COOKIE environment variable value in the MCP configutation.
 
 ## Usage
 
