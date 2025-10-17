@@ -2,18 +2,15 @@ version: 2.1
 
 orbs:
   architect: giantswarm/architect@6.7.0
+  python: circleci/python@3.0.0
 
 jobs:
   test:
-    executor: python:3.13
+    executor: python/default
     steps:
       - checkout
-      - run:
-          name: Check tools versions
-          command: |
-            python --version
-            uv --version
-            uv venv --version
+      - python/install-packages:
+          pkg-manager: uv
       - run:
           name: Install dependencies
           command: |
