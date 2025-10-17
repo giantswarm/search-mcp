@@ -27,13 +27,15 @@ An experimental MCP (Model Context Protocol) server that provides AI assistants 
       "--rm",
       "-e",
       "INTRANET_SESSION_COOKIE",
-      "gsoci.azurecr.io/giantswarm/search-mcp:latest0.0.1"
+      "gsoci.azurecr.io/giantswarm/search-mcp:0.0.1"
    ],
    "env": {
       "INTRANET_SESSION_COOKIE": "..."
    }
 }
 ```
+
+Make sure to adapt the version tag (`0.0.1` in the example above) to the version you intend to use. [Check here](https://oci.dag.dev/?repo=gsoci.azurecr.io%2Fgiantswarm%2Fsearch-mcp) for available versions.
 
 Note that `INTRANET_SESSION_COOKIE` is only required if you want to access intranet content. Read on for instructions on how to obtain the right value.
 
