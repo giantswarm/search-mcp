@@ -4,7 +4,7 @@ aiohappyeyeballs==2.6.1
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   aiohttp
-aiohttp==3.13.0
+aiohttp==3.13.1
     # via giantswarm-search-mcp (pyproject.toml)
 aiosignal==1.4.0
     # via
