@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `mcp` from 1.14.0 to 1.18.0
   - Updated `multidict` from 6.6.4 to 6.7.0
   - Updated `propcache` from 0.3.2 to 0.4.1
-  - Updated `pydantic` from 2.11.9 to 2.12.2
+  - Updated `pydantic` from 2.11.9 to 2.12.3
   - Updated `pydantic-settings` from 2.10.1 to 2.11.0
   - Updated `pydantic_core` from 2.33.2 to 2.41.4
   - Updated `referencing` from 0.36.2 to 0.37.0
