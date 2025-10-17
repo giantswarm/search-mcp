@@ -28,7 +28,7 @@ dependencies = [
     "mdurl==0.1.2",
     "multidict==6.7.0",
     "propcache==0.4.1",
-    "pydantic==2.12.2",
+    "pydantic==2.12.3",
     "pydantic-settings==2.11.0",
     "pydantic_core==2.41.4",
     "Pygments==2.19.2",

@@ -99,7 +99,7 @@ propcache==0.4.1
     #   giantswarm-search-mcp (pyproject.toml)
     #   aiohttp
     #   yarl
-pydantic==2.12.2
+pydantic==2.12.3
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
