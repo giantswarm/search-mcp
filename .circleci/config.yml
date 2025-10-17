@@ -2,15 +2,21 @@ version: 2.1
 
 orbs:
   architect: giantswarm/architect@6.7.0
-  python: circleci/python@3.0.0
 
 jobs:
   test:
-    executor: python/3.13
+    docker:
+      - image: cimg/python:3.13
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: auto
+      - run:
+          name: Install uv
+          command: |
+            pip install uv
+      - run:
+          name: Install dependencies
+          command: |
+            uv pip install -r requirements.txt
       - run:
           name: Run tests
           command: |
