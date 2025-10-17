@@ -1,0 +1,41 @@
+---
+description: General cursor rules for this project
+globs: **
+alwaysApply: true
+---
+
+- Repository/project provides an MCP server to access several Giant Swarm documentation sources
+- Written in Python using version 3.13
+- Using uv
+- Maintaining a virtual environment in `.venv`
+- Always use the Python interpreter from within the .venv directory
+- `requirements.txt` should always represent the exact module versions used and must be maintained with all dependency changes.
+- `Dockerfile` provides the means to build a container image for the MPC server.
+
+## Documentation Structure
+
+- `README.md` - User-facing documentation (installation, usage, quick start)
+- `docs/` - Developer/technical documentation
+  - `docs/architecture.md` - Technical architecture and design
+  - `docs/security.md` - Security considerations
+  - `docs/development.md` - Development setup and guidelines
+
+## Intranet access
+
+- Access to https://intranet.giantswarm.io/ is restricted via OAuth2 Proxy (https://github.com/oauth2-proxy/oauth2-proxy).
+
+## Search backend
+
+- The search function at https://intranet.giantswarm.io/searchapi/ is provided by Elasticsearch v6.8.x and maps to the /INDEX_NAME/_search/ endpoint.
+
+- Here is an example `curl` command that demonstrates how to submit a search query to the search API directly:
+
+  curl 'https://intranet.giantswarm.io/searchapi/' \
+    -H 'accept: application/json, text/javascript, */*; q=0.01' \
+    -H 'content-type: application/json' \
+    -b '_oauth2_proxy=VK_vIPORSPz-FxJ9AKRDXMcfNRbiieYbuU3eAAGCVqKKnug0dzaW5W-VSOYHQXKujTd5hfzuQSvYrhDVwhVExEgObZlDkfn00ZviPjr7qFZJx_n-r1NWu27X-n3_QBr6J_ONYVofdm1M9Ww_lfFspjkBRPKCLIdJ_9TlReX42g5L47r9fAdWNkEd7V9uYq2-JKnKx0Z1YAKNWO5d1T3SFkG1hFgRP0j15a3j54iabA==|1757582427|SlBp31iMe6-ougeyRSuX04iBE6ydPmfl2syqyHz-8FQ=' \
+    -H 'origin: https://intranet.giantswarm.io' \
+    --data @example-request.json
+
+  The example-request.json file is found in the repository root.
+
