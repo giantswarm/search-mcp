@@ -3,17 +3,25 @@ version: 2.1
 orbs:
   architect: giantswarm/architect@6.7.0
 
-workflows:
-  go-build:
-    jobs:
-    - build-and-test:
-        name: build-and-test
-        command: |
+jobs:
+  test:
+    executor: python:3.13
+    steps:
+      - checkout
+      - name: Check Python version
+      - run: |
           python --version
+      - name: Run tests
+      - run: |
           timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
-        filters:
-          tags:
-            only: /^v.*/
+
+workflows:
+  build:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
 
     # - architect/push-to-registries:
     #     context: architect
