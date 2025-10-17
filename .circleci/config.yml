@@ -8,12 +8,21 @@ jobs:
     executor: python:3.13
     steps:
       - checkout
-      - name: Check Python version
-      - run: |
-          python --version
-      - name: Run tests
-      - run: |
-          timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
+      - run:
+          name: Check tools versions
+          command: |
+            python --version
+            uv --version
+            uv venv --version
+      - run:
+          name: Install dependencies
+          command: |
+            uv venv
+            uv pip install -r requirements.txt
+      - run:
+          name: Run tests
+          command: |
+            timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
 
 workflows:
   build:
