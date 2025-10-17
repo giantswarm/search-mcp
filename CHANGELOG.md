@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Migrated from deprecated `tool.uv.dev-dependencies` to `dependency-groups.dev` in `pyproject.toml`
+- Updated development workflow to use `pyproject.toml` as source of truth for dependencies
+- Updated development documentation to reflect modern `uv` dependency management workflow
 - Dependency updates
   - Updated `aiohttp` from 3.12.15 to 3.13.0
   - Updated `anyio` from 4.10.0 to 4.11.0
