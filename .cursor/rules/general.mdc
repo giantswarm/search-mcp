@@ -11,6 +11,7 @@ alwaysApply: true
 - Always use the Python interpreter from within the .venv directory
 - `requirements.txt` should always represent the exact module versions used and must be maintained with all dependency changes.
 - `Dockerfile` provides the means to build a container image for the MPC server.
+- CHANGELOG.md should be updated for all changes.
 
 ## Documentation Structure
 
