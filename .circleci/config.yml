@@ -1,0 +1,51 @@
+version: 2.1
+
+orbs:
+  architect: giantswarm/architect@6.7.0
+
+jobs:
+  test:
+    docker:
+      - image: cimg/python:3.13
+    steps:
+      - checkout
+      - run:
+          name: Install uv
+          command: |
+            pip install uv
+      - run:
+          name: Install dependencies
+          command: |
+            uv venv
+            uv pip install -r requirements.txt
+      - run:
+          name: Test import
+          command: |
+            uv run python -c "import server; print('Server imported successfully')"
+      - run:
+          name: Test server initialization
+          command: |
+            timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
+
+workflows:
+  build:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-registries:
+          context: architect
+          name: push-to-registries
+          requires:
+            - test
+          registries-data: |-
+              public gsoci.azurecr.io ACR_GSOCI_USERNAME ACR_GSOCI_PASSWORD true
+          filters:
+              # Needed to trigger job also on git tag.
+            tags:
+              only: /^v.*/
+            branches:
+              ignore:
+                - main
