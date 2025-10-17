@@ -1,0 +1,31 @@
+version: 2.1
+
+orbs:
+  architect: giantswarm/architect@6.7.0
+
+workflows:
+  go-build:
+    jobs:
+    - build-and-test:
+        name: build-and-test
+        command: |
+          python --version
+          timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
+        filters:
+          tags:
+            only: /^v.*/
+
+    # - architect/push-to-registries:
+    #     context: architect
+    #     name: push-to-registries
+    #     requires:
+    #       - build-and-test
+    #     registries-data: |-
+    #         public gsoci.azurecr.io ACR_GSOCI_USERNAME ACR_GSOCI_PASSWORD true
+    #     filters:
+    #         # Needed to trigger job also on git tag.
+    #       tags:
+    #         only: /^v.*/
+    #       branches:
+    #         ignore:
+    #           - main
