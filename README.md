@@ -15,6 +15,12 @@ An experimental MCP (Model Context Protocol) server that provides AI assistants 
 ### Installation
 
 ```bash
+# Setup up virtual environment
+python3 -m venv .venv
+
+# Load virtual environment
+source .venv/bin/activate
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -28,7 +34,7 @@ python server.py
 
 To access internal Giant Swarm resources, set up authentication:
 
-1. Visit [https://intranet.giantswarm.io/](https://intranet.giantswarm.io/) and login with GitHub
+1. Visit [intranet.giantswarm.io](https://intranet.giantswarm.io/) and login with GitHub
 2. Open browser Developer Tools (F12) → Application → Cookies
 3. Copy the `_oauth2_proxy` cookie value
 4. Set environment variable:
@@ -41,17 +47,26 @@ To access internal Giant Swarm resources, set up authentication:
 The server provides these tools to AI assistants:
 
 ### `search(term: str)`
+
 Search Giant Swarm documentation.
+
 - Without authentication: Public docs only (docs.giantswarm.io, blog, etc.)
 - With authentication: Public + intranet resources
 
+### `search_runbook(term: str)`
+
+Search DevOps runbooks in the intranet. Requires authentication.
+
 ### `search_ops_recipe(term: str)`
+
 Search Ops Recipes (runbooks) in the intranet. Requires authentication.
 
 ### `read_handbook_url(url: str)`
+
 Read content from Giant Swarm handbook. No authentication required.
 
 ### `read_intranet_url(url: str)`
+
 Read content from Giant Swarm intranet. Requires authentication.
 
 ## Configuration
