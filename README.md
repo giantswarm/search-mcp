@@ -104,12 +104,8 @@ Your session cookie may have expired. To fix this:
 - Check that docs.giantswarm.io is accessible
 - For intranet access, ensure your credentials are valid
 
-## Documentation
+## Technical documentation
 
 - **[Architecture](docs/architecture.md)** - How the server works internally
 - **[Security](docs/security.md)** - Security considerations and best practices  
 - **[Development](docs/development.md)** - Development setup and contribution guide
-
-## License
-
-See LICENSE file for details.
