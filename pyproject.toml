@@ -44,7 +44,7 @@ dependencies = [
     "sse-starlette==3.0.2",
     "starlette==0.48.0",
     "typer==0.17.4",
-    "typing-inspection==0.4.1",
+    "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
     "uvicorn==0.35.0",
     "yarl==1.20.1",
