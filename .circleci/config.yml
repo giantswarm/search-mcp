@@ -19,7 +19,11 @@ jobs:
             uv venv
             uv pip install -r requirements.txt
       - run:
-          name: Run tests
+          name: Test import
+          command: |
+            uv run python -c "import server; print('Server imported successfully')"
+      - run:
+          name: Test server initialization
           command: |
             timeout --verbose --preserve-status --kill-after=60s 30s uv run python server.py
 
