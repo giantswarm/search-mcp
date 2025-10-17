@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1] - 2025-10-17
+
 ### Added
 
 - Initial version
 
-[Unreleased]: https://github.com/giantswarm/search-mcp/tree/main
+[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/giantswarm/search-mcp/releases/tag/v0.0.1
