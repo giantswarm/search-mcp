@@ -177,7 +177,7 @@ typing-inspection==0.4.2
     #   giantswarm-search-mcp (pyproject.toml)
     #   pydantic
     #   pydantic-settings
-uvicorn==0.37.0
+uvicorn==0.38.0
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
