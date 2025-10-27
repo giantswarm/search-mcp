@@ -116,7 +116,7 @@ pygments==2.19.2
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   rich
-python-dotenv==1.1.1
+python-dotenv==1.2.1
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   pydantic-settings
