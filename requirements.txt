@@ -158,7 +158,7 @@ sse-starlette==3.0.2
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
-starlette==0.49.0
+starlette==0.49.1
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
