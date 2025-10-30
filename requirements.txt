@@ -83,7 +83,7 @@ markdown-it-py==4.0.0
     #   rich
 markdownify==1.2.0
     # via giantswarm-search-mcp (pyproject.toml)
-mcp==1.19.0
+mcp==1.20.0
     # via giantswarm-search-mcp (pyproject.toml)
 mdurl==0.1.2
     # via
