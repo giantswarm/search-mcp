@@ -154,7 +154,7 @@ soupsieve==2.8
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   beautifulsoup4
-sse-starlette==3.0.2
+sse-starlette==3.0.3
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
