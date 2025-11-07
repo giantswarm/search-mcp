@@ -104,7 +104,7 @@ pydantic==2.12.3
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
     #   pydantic-settings
-pydantic-core==2.41.4
+pydantic-core==2.41.5
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   pydantic
