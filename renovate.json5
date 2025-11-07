@@ -9,8 +9,10 @@
     {
       "groupName": "pydantic packages",
       "matchPackageNames": [
+        "pydantic_core",
+        "pydantic-core",
+        "pydantic-settings",
         "pydantic",
-        "pydantic_code"
       ]
     }
   ]
