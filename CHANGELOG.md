@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added Renovate package grouping for `pydantic` and `pydantic_core` to ensure they are updated together
 - Migrated from deprecated `tool.uv.dev-dependencies` to `dependency-groups.dev` in `pyproject.toml`
 - Updated development workflow to use `pyproject.toml` as source of truth for dependencies
 - Updated development documentation to reflect modern `uv` dependency management workflow
