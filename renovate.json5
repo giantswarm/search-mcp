@@ -5,4 +5,15 @@
     // Python specific config - https://github.com/giantswarm/renovate-presets/blob/main/lang-python.json5
     "github>giantswarm/renovate-presets:lang-python.json5",
   ],
+  "packageRules": [
+    {
+      "groupName": "pydantic packages",
+      "matchPackageNames": [
+        "pydantic_core",
+        "pydantic-core",
+        "pydantic-settings",
+        "pydantic",
+      ]
+    }
+  ]
 }
