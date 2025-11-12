@@ -12,7 +12,7 @@ dependencies = [
     "anyio==4.11.0",
     "attrs==25.4.0",
     "beautifulsoup4==4.14.2",
-    "certifi==2025.10.5",
+    "certifi==2025.11.12",
     "click==8.3.0",
     "frozenlist==1.8.0",
     "h11==0.16.0",
