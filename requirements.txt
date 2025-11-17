@@ -36,7 +36,7 @@ certifi==2025.11.12
     #   giantswarm-search-mcp (pyproject.toml)
     #   httpcore
     #   httpx
-click==8.3.0
+click==8.3.1
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   typer
