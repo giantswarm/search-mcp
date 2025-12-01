@@ -27,7 +27,7 @@ attrs==25.4.0
     #   aiohttp
     #   jsonschema
     #   referencing
-beautifulsoup4==4.14.2
+beautifulsoup4==4.14.3
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   markdownify
