@@ -133,7 +133,7 @@ rich==14.2.0
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   typer
-rpds-py==0.29.0
+rpds-py==0.30.0
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   jsonschema
