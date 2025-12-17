@@ -120,7 +120,7 @@ python-dotenv==1.2.1
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   pydantic-settings
-python-multipart==0.0.20
+python-multipart==0.0.21
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
