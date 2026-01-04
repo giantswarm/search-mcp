@@ -31,7 +31,7 @@ beautifulsoup4==4.14.3
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   markdownify
-certifi==2025.11.12
+certifi==2026.1.4
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   httpcore
