@@ -162,7 +162,7 @@ starlette==0.50.0
     # via
     #   giantswarm-search-mcp (pyproject.toml)
     #   mcp
-typer==0.20.1
+typer==0.21.0
     # via giantswarm-search-mcp (pyproject.toml)
 typing-extensions==4.15.0
     # via
