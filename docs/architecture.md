@@ -4,125 +4,178 @@ This document explains how the Giant Swarm Search MCP Server works internally.
 
 ## Overview
 
-The MCP server provides a bridge between AI assistants and Giant Swarm's documentation sources, supporting both public and authenticated access to different content repositories.
+The MCP server is implemented in Go and provides a bridge between AI assistants and Giant Swarm's public documentation sources. It uses the Model Context Protocol (MCP) to expose search and content reading capabilities.
 
 ## Key Components
 
-### 1. Dual Endpoint Support
+### 1. Search Endpoint
 
-The server automatically selects the appropriate search endpoint based on authentication status:
+The server uses the public search endpoint:
 
-- **Public endpoint**: `https://docs.giantswarm.io/searchapi/` (no authentication required)
-  - Used when no authentication is configured
+- **Public endpoint**: `https://docs.giantswarm.io/searchapi/`
+  - No authentication required
   - Provides access to public documentation sources (docs, blog, etc.)
-  
-- **Intranet endpoint**: `https://intranet.giantswarm.io/searchapi/` (requires authentication)
-  - Used when authentication is available
-  - Provides access to both public and internal intranet resources
+  - Powered by OpenSearch v3.2
 
-### 2. Authentication Management
+### 2. Package Structure
 
-The `AuthManager` class handles authentication:
-
-- **Environment Variable**: Reads `INTRANET_SESSION_COOKIE` from environment
-- **Automatic Detection**: The `is_authenticated()` method checks if credentials are available
-- **No State Storage**: Authentication is purely based on environment variables
-
-#### Authentication Flow
+The server follows Go best practices with a modular structure:
 
 ```
-User → Set INTRANET_SESSION_COOKIE env var
-     → AuthManager.get_auth_headers() checks for credentials
-     → If found: returns cookies for authenticated requests
-     → If not found: returns empty dict (public access only)
+search-mcp/
+├── main.go           # Main entry point and CLI
+├── internal/search/  # Core search functionality
+│   ├── server.go     # MCP server setup and lifecycle
+│   ├── tools.go      # MCP tool implementations
+│   ├── client.go     # HTTP client for search API
+│   ├── html.go       # HTML to Markdown conversion
+│   └── types.go      # Data structures
 ```
+
+#### Key Packages
+
+- **main.go**: Entry point with command-line interface using Go's `flag` package
+- **internal/search**: Core search functionality (not importable by external packages)
+  - `Server`: MCP server lifecycle management
+  - `Client`: HTTP client for search API and URL fetching
+  - Tool handlers: Implement the 5 MCP tools (search, search_runbook, search_ops_recipe, read_handbook_url, read_intranet_url)
 
 ### 3. Search Backend
 
-The search functionality is powered by Elasticsearch v6.8.x:
+The search functionality is powered by OpenSearch v3.2:
 
-- Uses Elasticsearch query DSL
-- Supports filters by type (e.g., "Intranet", "Blog")
+- Uses OpenSearch query DSL (Elasticsearch-compatible) with `function_score` and `simple_query_string`
+- Field weights: `title^5`, `uri^5`, `description^5`, `text`
+- Supports filters by type (e.g., "Blog", "Docs")
 - Supports breadcrumb filtering for specific sections
 - Implements scoring boosts for different content types
+- Returns highlighted excerpts from matching content
+- Compatible with both OpenSearch and Elasticsearch query syntax
 
-### 4. Content Reading
+### 4. Content Reading and Conversion
 
-The `_read_url_content()` helper function:
+The `html.go` module handles URL fetching and conversion:
 
-- Works with both authenticated and public URLs
-- Converts HTML to Markdown for better readability
-- Cleans up navigation elements (sidebars, scripts)
-- Handles error cases gracefully
+- Fetches HTML content from public URLs
+- Uses `goquery` to parse and clean HTML (removes sidebars, scripts)
+- Uses `html-to-markdown` library to convert to Markdown
+- Cleans up excessive whitespace for readability
+- Returns formatted Markdown with source URL
 
-### 5. Error Handling
+### 5. Transport Support
 
-The server provides context-aware error messages:
+The server supports two MCP transports:
 
-- Detects authentication failures vs network errors
-- Differentiates between expired sessions and missing credentials
-- Provides actionable guidance based on the error type
+- **stdio**: Standard input/output for local integration (Cursor, Claude Desktop)
+  - Uses `server.ServeStdio()` from mcp-go
+  - Handles SIGTERM/SIGINT for graceful shutdown
+  
+- **streamable-http**: HTTP-based transport for network deployment
+  - Uses `StreamableHTTPServer` from mcp-go
+  - Configurable endpoint path (default: `/mcp`)
+  - Graceful shutdown support
+
+### 6. Error Handling
+
+The server uses Go's standard error handling patterns:
+
+- Returns descriptive error messages in MCP responses
+- Uses structured logging with `log/slog`
+- Provides context about failures (network, parsing, API errors)
 
 ## Request Flow
 
-### Search Request (Authenticated)
+### Search Request
 
 ```
 AI Assistant
     ↓
 MCP Tool: search("kubernetes")
     ↓
-AuthManager.is_authenticated() → true
+tools.go: searchHandler()
     ↓
-Use https://intranet.giantswarm.io/searchapi/
+client.go: Client.Search()
     ↓
-Add authentication cookies
+Build Elasticsearch query
     ↓
-POST Elasticsearch query
+POST https://docs.giantswarm.io/searchapi/
     ↓
-Return formatted results (public + intranet content)
+Parse JSON response
+    ↓
+client.go: FormatSearchResults()
+    ↓
+Return formatted Markdown results
 ```
 
-### Search Request (Unauthenticated)
+### URL Reading Request
 
 ```
 AI Assistant
     ↓
-MCP Tool: search("kubernetes")
+MCP Tool: read_handbook_url("https://handbook.giantswarm.io/...")
     ↓
-AuthManager.is_authenticated() → false
+tools.go: readHandbookURLHandler()
     ↓
-Use https://docs.giantswarm.io/searchapi/
+Validate URL prefix
     ↓
-POST Elasticsearch query (no auth)
+client.go: Client.FetchURL()
     ↓
-Return formatted results (public content only)
+GET URL content
     ↓
-Include note about limited results
+html.go: ConvertHTMLToMarkdown()
+    ↓
+Parse with goquery, remove unwanted elements
+    ↓
+Convert to Markdown, clean whitespace
+    ↓
+Return formatted content
 ```
 
 ## Data Flow
 
-1. **User configures authentication** (optional)
-   - Sets `INTRANET_SESSION_COOKIE` environment variable
-   - Cookie is validated on first use
+1. **Client connects**
+   - Stdio: Reads from stdin, writes to stdout
+   - HTTP: Connects to configured endpoint
 
-2. **Search query is received**
-   - Server checks authentication status
-   - Selects appropriate endpoint
-   - Builds Elasticsearch query with filters
+2. **MCP initialization**
+   - Client sends initialize request
+   - Server responds with capabilities and tool list
+   - Server registers 5 tools with schemas
 
-3. **Results are processed**
-   - Elasticsearch returns hits with metadata
-   - Server formats results as Markdown
-   - Highlights and excerpts are included
+3. **Tool invocation**
+   - Client sends tool call request
+   - Server parses arguments using request.GetString(), request.GetInt(), etc.
+   - Handler executes business logic
+   - Results formatted as Markdown
 
-4. **Content is returned**
-   - Structured response with titles, URLs, types
-   - Authentication status indicators
-   - Pagination information
+4. **Search execution**
+   - Build OpenSearch query with filters
+   - POST to search API
+   - Parse JSON response (handles both ES 6.x and OpenSearch 7.x+ formats)
+   - Extract hits, highlights, metadata
+   - Format as Markdown with titles, URLs, excerpts
+
+5. **URL fetch and conversion**
+   - Fetch HTML content
+   - Parse with goquery
+   - Remove navigation elements
+   - Convert to Markdown
+   - Clean up whitespace
+   - Return formatted content
+
+## Technology Stack
+
+- **Language**: Go 1.23+
+- **MCP Framework**: github.com/mark3labs/mcp-go
+- **HTML Parsing**: github.com/PuerkitoBio/goquery
+- **HTML to Markdown**: github.com/JohannesKaufmann/html-to-markdown/v2
+- **Logging**: log/slog (Go standard library)
+- **HTTP Client**: net/http (Go standard library)
 
 ## Security Considerations
 
-See [Security](./security.md) for detailed security information.
+- Public endpoint access only (no authentication implemented)
+- No state storage or session management
+- Standard Go HTTP client with reasonable timeouts
+- See [Security](./security.md) for detailed information
 

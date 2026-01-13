@@ -1,0 +1,8 @@
+---
+alwaysApply: false
+description: Rules for dealing with Dockerfiles and related
+---
+
+- Always pin versions
+- Prefer images from the `gsoci.azurecr.io` registry and the `giantswarm` repository namespace
+- Maintain .gitignore to keep builds fast

@@ -1,14 +1,13 @@
 # Giant Swarm Search MCP Server
 
-An experimental MCP (Model Context Protocol) server that provides AI assistants with search access to Giant Swarm's documentation, handbook, and intranet.
+An MCP (Model Context Protocol) server that provides AI assistants with search access to Giant Swarm's public documentation and handbook.
 
 ## Features
 
-- Search public Giant Swarm documentation (no authentication required)
-- Search internal intranet resources (with optional authentication)
-- Automatic endpoint selection based on authentication status
+- Search public Giant Swarm documentation
 - Read and convert documentation pages to Markdown
-- Session persistence across restarts
+- Support for both stdio and HTTP transports
+- Fast and efficient Go implementation
 
 ## Quick Start
 
@@ -25,93 +24,171 @@ An experimental MCP (Model Context Protocol) server that provides AI assistants 
       "run",
       "-i",
       "--rm",
-      "-e",
-      "INTRANET_SESSION_COOKIE",
-      "gsoci.azurecr.io/giantswarm/search-mcp:0.0.1"
-   ],
-   "env": {
-      "INTRANET_SESSION_COOKIE": "..."
-   }
+      "gsoci.azurecr.io/giantswarm/search-mcp:latest",
+      "serve"
+   ]
 }
 ```
 
-Make sure to adapt the version tag (`0.0.1` in the example above) to the version you intend to use. [Check here](https://oci.dag.dev/?repo=gsoci.azurecr.io%2Fgiantswarm%2Fsearch-mcp) for available versions.
+Make sure to adapt the version tag to the version you intend to use. [Check here](https://oci.dag.dev/?repo=gsoci.azurecr.io%2Fgiantswarm%2Fsearch-mcp) for available versions.
 
-Note that `INTRANET_SESSION_COOKIE` is only required if you want to access intranet content. Read on for instructions on how to obtain the right value.
+### Installation
 
-### Optional: Authenticate for intranet access
+#### Using Go
 
-To access internal Giant Swarm resources, set up authentication:
+```bash
+go install github.com/giantswarm/search-mcp@latest
+```
 
-1. Visit [intranet.giantswarm.io](https://intranet.giantswarm.io/) and login with GitHub
-2. Open browser Developer Tools (F12) → Application → Cookies
-3. Copy the `_oauth2_proxy` cookie value
-4. Set INTRANET_SESSION_COOKIE environment variable value in the MCP configutation.
+#### Using Docker
+
+```bash
+# Pull the image
+docker pull gsoci.azurecr.io/giantswarm/search-mcp:latest
+
+# Run with stdio transport (for direct interaction)
+docker run -i --rm gsoci.azurecr.io/giantswarm/search-mcp:latest serve
+
+# Run with HTTP transport (for network access)
+docker run -d -p 8080:8080 \
+  gsoci.azurecr.io/giantswarm/search-mcp:latest \
+  serve --transport=streamable-http --http-addr=:8080
+
+# Check version
+docker run --rm gsoci.azurecr.io/giantswarm/search-mcp:latest version
+```
+
+#### From Source
+
+```bash
+git clone https://github.com/giantswarm/search-mcp
+cd search-mcp
+make build
+```
 
 ## Usage
 
+### Running the Server
+
+```bash
+# Run with stdio transport (default, for Cursor)
+search-mcp
+# or explicitly:
+search-mcp serve
+
+# Run with HTTP transport
+search-mcp serve --transport=streamable-http --http-addr=:8080
+
+# Run with debug logging
+search-mcp serve --debug
+
+# Show version
+search-mcp version
+```
+
+### Available Tools
+
 The server provides these tools to AI assistants:
 
-### `search(term: str)`
+#### `search(term, start_index, size, type_filter, breadcrumb_filter)`
 
-Search Giant Swarm documentation.
+Search Giant Swarm documentation (public docs from docs.giantswarm.io).
 
-- Without authentication: Public docs only (docs.giantswarm.io, blog, etc.)
-- With authentication: Public + intranet resources
+**Parameters:**
+- `term` (required): Search term
+- `start_index` (optional): Starting index for pagination (default: 0)
+- `size` (optional): Number of results to return (default: 30)
+- `type_filter` (optional): Filter by source type
+- `breadcrumb_filter` (optional): Filter by section path
 
-### `search_runbook(term: str)`
+#### `search_runbook(term, start_index, size)`
 
-Search DevOps runbooks in the intranet. Requires authentication.
+Search for DevOps runbooks in the documentation.
 
-### `search_ops_recipe(term: str)`
+#### `search_ops_recipe(term, start_index, size)`
 
-Search Ops Recipes (runbooks) in the intranet. Requires authentication.
+Search for Ops Recipes (legacy runbooks) in the documentation.
 
-### `read_handbook_url(url: str)`
+#### `read_handbook_url(url)`
 
-Read content from Giant Swarm handbook. No authentication required.
+Read content from Giant Swarm handbook (public, no authentication required).
 
-### `read_intranet_url(url: str)`
+**Parameters:**
+- `url` (required): URL from https://handbook.giantswarm.io/
 
-Read content from Giant Swarm intranet. Requires authentication.
+#### `read_intranet_url(url)`
+
+Read content from Giant Swarm intranet (may require authentication depending on deployment).
+
+**Parameters:**
+- `url` (required): URL from https://intranet.giantswarm.io/
 
 ## Configuration
 
-### Environment Variables
+### Command-Line Flags
 
-- `INTRANET_SESSION_COOKIE`: OAuth2 proxy session cookie (optional, for intranet access)
-- `PYTHONLOGLEVEL`: Logging level - DEBUG, INFO, WARNING, or ERROR (optional)
-
-Copy `env.example` to `.env` and customize as needed.
+- `--transport`: Transport type - `stdio` or `streamable-http` (default: `stdio`)
+- `--http-addr`: HTTP server address (default: `:8080`)
+- `--http-endpoint`: HTTP endpoint path (default: `/mcp`)
+- `--debug`: Enable debug logging
+- `--version`: Show version information
 
 ## Troubleshooting
-
-### Limited search results
-
-You're in public-only mode. To access intranet resources, set the `INTRANET_SESSION_COOKIE` environment variable following the authentication setup instructions above.
-
-### "Authentication required" error
-
-Your session cookie may have expired. To fix this:
-
-1. Log into https://intranet.giantswarm.io/ again
-2. Get a fresh cookie value:
-   - Open the developer tools (F12 or Cmd + Option + I)
-   - Go to Application → Cookies → `https://intranet.giantswarm.io`
-   - Select the cookie named `_oauth2_proxy`
-   - Copy the cookie value
-3. Update your environment variable:
-   - In Cursor: Settings → Tools & MCP → Edit `giantswarm-search` → Update INTRANET_SESSION_COOKIE
-   - Or in terminal: `export INTRANET_SESSION_COOKIE="your_new_cookie_value"`
 
 ### Connection errors
 
 - Verify your network connection
 - Check that docs.giantswarm.io is accessible
-- For intranet access, ensure your credentials are valid
 
-## Technical documentation
+### Debug logging
+
+Enable debug logging to see detailed information:
+
+```bash
+search-mcp serve --debug
+```
+
+### Building from source
+
+If you encounter issues with the pre-built binaries:
+
+```bash
+git clone https://github.com/giantswarm/search-mcp
+cd search-mcp
+go build -o search-mcp .
+./search-mcp version
+```
+
+## Development
+
+For development setup, building from source, and contributing:
+
+```bash
+# Clone repository
+git clone https://github.com/giantswarm/search-mcp
+cd search-mcp
+
+# Install dependencies
+go mod download
+
+# Build
+make build
+
+# Run tests
+make test
+
+# Run locally
+make run
+```
+
+See [Development Guide](docs/development.md) for detailed instructions.
+
+## Technical Documentation
 
 - **[Architecture](docs/architecture.md)** - How the server works internally
 - **[Security](docs/security.md)** - Security considerations and best practices  
 - **[Development](docs/development.md)** - Development setup and contribution guide
+
+## License
+
+Apache License 2.0 - See [LICENSE](LICENSE) file for details.

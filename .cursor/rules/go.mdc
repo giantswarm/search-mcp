@@ -1,0 +1,30 @@
+---
+alwaysApply: false
+description: Rules for dealing with Go/Golang code
+---
+
+## General
+
+- Use `go run .` or `go run main.go` to test the application. Avoid compiling a binary when possible.
+
+## Preparing for CI
+
+In CI, all code will be checked using this script:
+
+```bash
+go install golang.org/x/tools/cmd/goimports@latest && \
+if [[ -n $(goimports -local github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} -l .) ]];
+then
+  goimports -local github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} -d . && exit 1;
+fi
+```
+
+To pass this check, run this over all edited/added Go files:
+
+```bash
+goimports -local github.com/giantswarm/search-mcp -w <path>
+```
+
+## Dependencies
+
+- Use `go mod tidy` after changes to `go.mod` and after `go get` commands.

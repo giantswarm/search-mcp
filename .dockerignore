@@ -2,33 +2,11 @@
 .git
 .gitignore
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
-venv/
-env/
-ENV/
+# Build artifacts
+bin/
+*.test
+*.out
+coverage.html
 
 # IDE
 .vscode/
@@ -36,6 +14,7 @@ ENV/
 *.swp
 *.swo
 *~
+.cursor/
 
 # OS
 .DS_Store
@@ -47,6 +26,12 @@ Thumbs.db
 # Documentation
 *.md
 !README.md
+docs/
 
-# Session files (will be created at runtime)
-.giantswarm_mcp_session
+# CI/CD
+.circleci/
+.github/
+
+# Environment files
+.env
+env.example
