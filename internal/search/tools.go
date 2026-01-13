@@ -9,6 +9,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+const (
+	itemsPerPageDefault = 10
+)
+
 // RegisterTools registers all search tools with the MCP server
 func RegisterTools(s *server.MCPServer, client *Client) {
 	// Register search tool
@@ -29,8 +33,8 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 				},
 				"size": map[string]interface{}{
 					"type":        "integer",
-					"description": "The size of the search results (optional, defaults to 30)",
-					"default":     30,
+					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+					"default":     itemsPerPageDefault,
 				},
 				"type_filter": map[string]interface{}{
 					"type":        "string",
@@ -68,8 +72,8 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 				},
 				"size": map[string]interface{}{
 					"type":        "integer",
-					"description": "The size of the search results (optional, defaults to 30)",
-					"default":     30,
+					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+					"default":     itemsPerPageDefault,
 				},
 			},
 			Required: []string{"term"},
@@ -94,8 +98,8 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 				},
 				"size": map[string]interface{}{
 					"type":        "integer",
-					"description": "The size of the search results (optional, defaults to 30)",
-					"default":     30,
+					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+					"default":     itemsPerPageDefault,
 				},
 			},
 			Required: []string{"term"},
@@ -145,7 +149,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 		}
 
 		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", 30)
+		size := request.GetInt("size", itemsPerPageDefault)
 		typeFilter := request.GetString("type_filter", "")
 		breadcrumbFilter := request.GetStringSlice("breadcrumb_filter", []string{})
 
@@ -180,7 +184,7 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 		}
 
 		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", 30)
+		size := request.GetInt("size", itemsPerPageDefault)
 
 		// Perform search with runbook breadcrumb filter
 		searchReq := SearchRequest{
@@ -212,7 +216,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 		}
 
 		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", 30)
+		size := request.GetInt("size", itemsPerPageDefault)
 
 		// Perform search with ops-recipes breadcrumb filter
 		searchReq := SearchRequest{
