@@ -23,7 +23,7 @@ The server follows Go best practices with a modular structure:
 
 ```
 search-mcp/
-├── cmd/server/       # Main entry point and CLI
+├── main.go           # Main entry point and CLI
 ├── internal/search/  # Core search functionality
 │   ├── server.go     # MCP server setup and lifecycle
 │   ├── tools.go      # MCP tool implementations
@@ -34,7 +34,7 @@ search-mcp/
 
 #### Key Packages
 
-- **cmd/server**: Entry point with command-line interface using Go's `flag` package
+- **main.go**: Entry point with command-line interface using Go's `flag` package
 - **internal/search**: Core search functionality (not importable by external packages)
   - `Server`: MCP server lifecycle management
   - `Client`: HTTP client for search API and URL fetching

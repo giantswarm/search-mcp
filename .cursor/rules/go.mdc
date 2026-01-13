@@ -3,6 +3,10 @@ alwaysApply: false
 description: Rules for dealing with Go/Golang code
 ---
 
+## General
+
+- Use `go run .` or `go run main.go` to test the application. Avoid compiling a binary when possible.
+
 ## Preparing for CI
 
 In CI, all code will be checked using this script:

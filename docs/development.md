@@ -27,7 +27,7 @@ go mod download
 make build
 
 # Or using Go directly
-go build -o bin/mcp-server ./cmd/server
+go build -o bin/search-mcp .
 ```
 
 ### 3. Run the Server
@@ -43,9 +43,9 @@ make run-http
 make run-debug
 
 # Or run directly
-./bin/mcp-server
-./bin/mcp-server --transport=streamable-http --http-addr=:8080
-./bin/mcp-server --debug
+./bin/search-mcp serve
+./bin/search-mcp serve --transport=streamable-http --http-addr=:8080
+./bin/search-mcp serve --debug
 ```
 
 ## Docker Development
@@ -83,9 +83,7 @@ docker rm giantswarm-search-mcp
 
 ```
 search-mcp/
-├── cmd/
-│   └── server/
-│       └── main.go          # Entry point and CLI
+├── main.go                  # Entry point and CLI
 ├── internal/
 │   └── search/
 │       ├── server.go        # MCP server setup and lifecycle
@@ -109,7 +107,7 @@ search-mcp/
 
 ### Main Packages
 
-- **cmd/server**: Entry point with CLI using Go's `flag` package
+- **main.go**: Entry point with CLI using Go's `flag` package
 - **internal/search**: Core search functionality (internal, not exported)
   - `Server`: MCP server lifecycle management
   - `Client`: HTTP client for search and URL fetching
@@ -207,7 +205,7 @@ go list -m all
 
 ```bash
 # Using flag
-mcp-server --debug
+search-mcp serve --debug
 
 # With Make
 make run-debug
@@ -289,21 +287,21 @@ make docker-push
 
 # Run container
 docker run -d \
-  --name mcp-server \
+  --name search-mcp \
   -p 8080:8080 \
   gsoci.azurecr.io/giantswarm/search-mcp:latest \
-  --transport=streamable-http --http-addr=:8080
+  serve --transport=streamable-http --http-addr=:8080
 ```
 
 ### Binary Deployment
 
 ```bash
 # Build optimized binary
-CGO_ENABLED=0 go build -ldflags="-s -w" -o mcp-server ./cmd/server
+CGO_ENABLED=0 go build -ldflags="-s -w" -o search-mcp .
 
 # Run as systemd service (example)
-sudo cp mcp-server /usr/local/bin/
-sudo systemctl start mcp-server
+sudo cp search-mcp /usr/local/bin/
+sudo systemctl start search-mcp
 ```
 
 ## Troubleshooting Development Issues

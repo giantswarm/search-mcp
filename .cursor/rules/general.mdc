@@ -5,7 +5,7 @@ description: General cursor rules for this project
 - Repository/project provides an MCP server to access several Giant Swarm documentation sources
 - Written in Go using version 1.25+
 - Using Go modules for dependency management
-- Main entry point is `cmd/server/main.go`
+- Main entry point is `main.go` in project root
 - Core implementation in `internal/search/` package
 - `Dockerfile` provides multi-stage build for container image
 - CHANGELOG.md should be updated for all changes

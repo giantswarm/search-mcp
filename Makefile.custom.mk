@@ -1,7 +1,7 @@
 ##@ Custom Targets
 
 # Binary name
-BINARY_NAME := mcp-server
+BINARY_NAME := search-mcp
 BIN_DIR := bin
 
 # Docker image settings
@@ -12,14 +12,14 @@ DOCKER_TAG := $(shell git describe --tags --always --dirty)
 build: ## Build the binary
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/server
+	go build -o $(BIN_DIR)/$(BINARY_NAME) .
 	@echo "Binary built: $(BIN_DIR)/$(BINARY_NAME)"
 
 .PHONY: build-linux
 build-linux: ## Build the binary for Linux
 	@echo "Building $(BINARY_NAME) for Linux..."
 	@mkdir -p $(BIN_DIR)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/server
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 .
 	@echo "Binary built: $(BIN_DIR)/$(BINARY_NAME)-linux-amd64"
 
 .PHONY: test
@@ -61,17 +61,17 @@ docker-push: ## Push Docker image
 .PHONY: run
 run: ## Run the server locally (stdio transport)
 	@echo "Running $(BINARY_NAME) with stdio transport..."
-	go run ./cmd/server
+	go run . serve
 
 .PHONY: run-http
 run-http: ## Run the server locally (HTTP transport)
 	@echo "Running $(BINARY_NAME) with HTTP transport..."
-	go run ./cmd/server --transport=streamable-http --http-addr=:8080
+	go run . serve --transport=streamable-http --http-addr=:8080
 
 .PHONY: run-debug
 run-debug: ## Run the server with debug logging
 	@echo "Running $(BINARY_NAME) with debug logging..."
-	go run ./cmd/server --debug
+	go run . serve --debug
 
 .PHONY: clean
 clean: ## Clean build artifacts

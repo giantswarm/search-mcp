@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /mcp-server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /search-mcp .
 
 # Stage 2: Runtime
 FROM gsoci.azurecr.io/giantswarm/alpine:3.23.2
@@ -22,7 +22,7 @@ FROM gsoci.azurecr.io/giantswarm/alpine:3.23.2
 RUN apk --no-cache add ca-certificates
 
 # Copy binary from builder
-COPY --from=builder /mcp-server /usr/local/bin/mcp-server
+COPY --from=builder /search-mcp /usr/local/bin/search-mcp
 
 # Run as nobody user
 USER nobody
@@ -32,7 +32,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["/usr/local/bin/mcp-server", "--version"]
+    CMD ["/usr/local/bin/search-mcp", "version"]
 
 # Run the MCP server (default: stdio transport)
-CMD ["mcp-server"]
+CMD ["search-mcp", "serve"]

@@ -59,16 +59,18 @@ make build
 
 ```bash
 # Run with stdio transport (default, for Cursor)
-mcp-server
+search-mcp
+# or explicitly:
+search-mcp serve
 
 # Run with HTTP transport
-mcp-server --transport=streamable-http --http-addr=:8080
+search-mcp serve --transport=streamable-http --http-addr=:8080
 
 # Run with debug logging
-mcp-server --debug
+search-mcp serve --debug
 
 # Show version
-mcp-server --version
+search-mcp version
 ```
 
 ### Available Tools
@@ -130,7 +132,7 @@ Read content from Giant Swarm intranet (may require authentication depending on 
 Enable debug logging to see detailed information:
 
 ```bash
-mcp-server --debug
+search-mcp serve --debug
 ```
 
 ### Building from source
@@ -140,8 +142,8 @@ If you encounter issues with the pre-built binaries:
 ```bash
 git clone https://github.com/giantswarm/search-mcp
 cd search-mcp
-go build -o mcp-server ./cmd/server
-./mcp-server --version
+go build -o search-mcp .
+./search-mcp version
 ```
 
 ## Development
