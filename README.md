@@ -24,7 +24,8 @@ An MCP (Model Context Protocol) server that provides AI assistants with search a
       "run",
       "-i",
       "--rm",
-      "gsoci.azurecr.io/giantswarm/search-mcp:latest"
+      "gsoci.azurecr.io/giantswarm/search-mcp:latest",
+      "serve"
    ]
 }
 ```
@@ -36,13 +37,25 @@ Make sure to adapt the version tag to the version you intend to use. [Check here
 #### Using Go
 
 ```bash
-go install github.com/giantswarm/search-mcp/cmd/server@latest
+go install github.com/giantswarm/search-mcp@latest
 ```
 
 #### Using Docker
 
 ```bash
+# Pull the image
 docker pull gsoci.azurecr.io/giantswarm/search-mcp:latest
+
+# Run with stdio transport (for direct interaction)
+docker run -i --rm gsoci.azurecr.io/giantswarm/search-mcp:latest serve
+
+# Run with HTTP transport (for network access)
+docker run -d -p 8080:8080 \
+  gsoci.azurecr.io/giantswarm/search-mcp:latest \
+  serve --transport=streamable-http --http-addr=:8080
+
+# Check version
+docker run --rm gsoci.azurecr.io/giantswarm/search-mcp:latest version
 ```
 
 #### From Source

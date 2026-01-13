@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["/usr/local/bin/search-mcp", "version"]
 
 # Run the MCP server (default: stdio transport)
-CMD ["search-mcp", "serve"]
+ENTRYPOINT ["/usr/local/bin/search-mcp"]

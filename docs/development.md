@@ -59,17 +59,27 @@ docker build -t giantswarm-search-mcp .
 ### Running with Docker
 
 ```bash
-# Run without authentication (public search only)
+# Run with default stdio transport
 docker run -d \
     --name giantswarm-search-mcp \
-    giantswarm-search-mcp
+    giantswarm-search-mcp \
+    serve
 
-# Run with authentication for testing intranet access
+# Run with HTTP transport
 docker run -d \
     --name giantswarm-search-mcp \
-    -e INTRANET_SESSION_COOKIE="your_cookie_value" \
-    -v ./session_data:/home/app/.giantswarm_mcp_session \
-    giantswarm-search-mcp
+    -p 8080:8080 \
+    giantswarm-search-mcp \
+    serve --transport=streamable-http --http-addr=:8080
+
+# Run with debug logging
+docker run -d \
+    --name giantswarm-search-mcp \
+    giantswarm-search-mcp \
+    serve --debug
+
+# Check version
+docker run --rm giantswarm-search-mcp version
 
 # View logs
 docker logs -f giantswarm-search-mcp
