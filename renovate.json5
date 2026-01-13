@@ -2,18 +2,7 @@
   "extends": [
     // Base config - https://github.com/giantswarm/renovate-presets/blob/main/default.json5
     "github>giantswarm/renovate-presets:default.json5",
-    // Python specific config - https://github.com/giantswarm/renovate-presets/blob/main/lang-python.json5
-    "github>giantswarm/renovate-presets:lang-python.json5",
-  ],
-  "packageRules": [
-    {
-      "groupName": "pydantic packages",
-      "matchPackageNames": [
-        "pydantic_core",
-        "pydantic-core",
-        "pydantic-settings",
-        "pydantic",
-      ]
-    }
+    // Golang specific config - https://github.com/giantswarm/renovate-presets/blob/main/lang-go.json5
+    "github>giantswarm/renovate-presets:lang-go.json5",
   ]
 }

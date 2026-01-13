@@ -2,49 +2,29 @@
 
 This document covers security considerations for the Giant Swarm Search MCP Server.
 
-## Authentication Storage
+## Authentication Status
 
-### Environment Variables
+**Note**: Authentication is currently not implemented in this version of the server. The server only accesses public endpoints that do not require authentication.
 
-- **Storage**: The `INTRANET_SESSION_COOKIE` environment variable contains authentication credentials
-- **Scope**: Environment variables are process-scoped and not visible to other users
-- **No Persistence**: Cookies are not stored in files - only in memory from the environment variable
-- **Best Practice**: Never commit `.env` files with actual credentials to version control
-
-## OAuth2 Proxy Integration
-
-The intranet is protected by [OAuth2 Proxy](https://github.com/oauth2-proxy/oauth2-proxy), which:
-
-- Handles GitHub OAuth authentication
-- Issues session cookies (`_oauth2_proxy`)
-- Manages session expiration
-- Redirects unauthenticated requests to login
-
-### Cookie Expiration
-
-- OAuth2 proxy cookies typically expire after a period of inactivity
-- When expired, users need to re-authenticate through the browser
-- The server detects expired sessions and prompts users to refresh credentials
+- Public documentation at `docs.giantswarm.io` is accessible without credentials
+- Internal resources at `intranet.giantswarm.io` may require authentication in future versions
+- Authentication will be implemented differently in a future release
 
 ## Network Security
 
 ### SSL/TLS
 
-**⚠️ Development Setting**: SSL verification is currently disabled in the code:
-
-```python
-connector = aiohttp.TCPConnector(ssl=False)
-```
-
-**Recommendation for Production**:
-- Remove `ssl=False` to enable certificate verification
-- Or provide proper certificate validation
-- This prevents man-in-the-middle attacks
+The Go implementation uses the standard `net/http` package which:
+- Enables SSL/TLS verification by default
+- Uses the system's certificate pool
+- Validates certificates automatically
+- Provides secure HTTPS connections
 
 ### Endpoints
 
-- **Public endpoint** (`docs.giantswarm.io`): No authentication required
-- **Intranet endpoint** (`intranet.giantswarm.io`): Requires OAuth2 proxy authentication
+- **Public endpoint** (`docs.giantswarm.io/searchapi/`): No authentication required
+- **Handbook** (`handbook.giantswarm.io`): Public access
+- **Intranet** (`intranet.giantswarm.io`): May require authentication (not currently supported)
 
 ## Data Privacy
 
@@ -53,91 +33,98 @@ connector = aiohttp.TCPConnector(ssl=False)
 - Nothing is stored locally
 - No search queries are stored
 - No search results are cached
-- No session files
+- No session or state files
+- Stateless operation
 
 ### What is sent to servers
 
-- Search queries are sent to Elasticsearch
-- Authentication cookies (from environment variable) are sent to intranet.giantswarm.io
-- Standard HTTP headers (User-Agent, etc.)
+- Search queries are sent to Elasticsearch at docs.giantswarm.io
+- URL fetch requests to handbook.giantswarm.io or intranet.giantswarm.io
+- Standard HTTP headers (User-Agent, Accept, Content-Type)
 
 ### What is NOT stored
 
-- User passwords (authentication is cookie-based)
-- Search history
-- Personal identification information
-- Session cookies (only read from environment variable)
+- No credentials or authentication tokens
+- No search history
+- No personal identification information
+- No cookies or session data
 
 ## Best Practices
 
 ### For Users
 
-1. **Protect your session cookie**
-   - Don't share your `INTRANET_SESSION_COOKIE` value
-   - Don't commit it to version control
-   - Treat it like a password
+1. **Network security**
+   - Ensure TLS/HTTPS connections are used
+   - Verify certificate warnings if they appear
+   - Use trusted networks when accessing documentation
 
-2. **Refresh credentials regularly**
-   - Re-authenticate when prompted
-   - Don't use expired sessions
-
-3. **Use environment files safely**
-   - Copy `env.example` to `.env` (which is .gitignored)
-   - Never commit `.env` with real credentials
+2. **Binary verification**
+   - Download binaries from official sources only
+   - Verify checksums if provided
+   - Use official Docker images
 
 ### For Developers
 
-1. **Enable SSL verification for production**
-   - Remove `ssl=False` from connector configuration
-   - Test with proper certificates
+1. **Dependency management**
+   - Keep dependencies up to date: `go get -u ./...`
+   - Review security advisories: `go list -m -u all`
+   - Use `go mod verify` to check integrity
 
-2. **Session management**
-   - Cookies are only read from environment variables
-   - No local file storage to secure
-   - Expired sessions are detected and reported
+2. **Secure coding**
+   - Follow Go security best practices
+   - Use structured logging (no sensitive data in logs)
+   - Set appropriate HTTP timeouts
+   - Handle errors properly
 
-3. **Audit logging**
-   - Consider adding audit logs for security events
-   - Log authentication failures and suspicious activity
+3. **Deployment**
+   - Run as non-root user (Dockerfile uses `nobody`)
+   - Use minimal container images (Alpine-based)
+   - Set resource limits
+   - Enable logging and monitoring
 
 ## Threat Model
 
 ### Threats Mitigated
 
-✅ **Unauthorized access to intranet**: OAuth2 proxy authentication required  
-✅ **Credential exposure in code**: Credentials stored in environment variables and local files  
-✅ **Session hijacking**: HTTPS transport encryption (when SSL verification is enabled)
+✅ **Man-in-the-middle attacks**: HTTPS with certificate verification enabled by default  
+✅ **Code injection**: Input validation on all tool parameters  
+✅ **Container security**: Run as non-root user, minimal attack surface
 
-### Potential Vulnerabilities
+### Current Limitations
 
-⚠️ **SSL disabled**: Current development setting disables certificate verification  
-⚠️ **Environment variable exposure**: Environment variables could be logged or exposed in process listings
+⚠️ **No authentication**: Server accesses only public endpoints
+⚠️ **No rate limiting**: Consider adding for production deployments  
+⚠️ **No input sanitization for HTML**: Relies on third-party libraries for safe conversion
 
-### Recommended Improvements
+### Recommended Improvements for Production
 
-1. **Enable SSL verification** for production deployments
-2. **Implement session validation** to verify cookie format and expiration
-3. **Add rate limiting** to prevent abuse
-4. **Log security events** for audit trail
+1. **Add rate limiting** to prevent abuse of search API
+2. **Implement request logging** for audit trail
+3. **Add health checks** for monitoring
+4. **Set up alerts** for error conditions
+5. **Consider adding authentication** when accessing protected resources
 
-## Incident Response
+## Security Updates
 
-If you suspect your session cookie has been compromised:
+To stay informed about security updates:
 
-1. **Immediately revoke access**:
-   - Visit https://intranet.giantswarm.io/
-   - Log out from all sessions
-   - Log back in to get a new session
-
-2. **Remove old credentials**:
+1. **Monitor dependencies**:
    ```bash
-   unset INTRANET_SESSION_COOKIE
+   # Check for updates
+   go list -m -u all
+   
+   # Update dependencies
+   go get -u ./...
+   go mod tidy
    ```
-   Or update your MCP configuration to remove/replace the cookie value
 
-3. **Get new credentials**:
-   - Follow the authentication setup process again
-   - Obtain a fresh session cookie
+2. **Subscribe to security advisories**:
+   - GitHub security advisories for Go
+   - Security mailing lists for dependencies
+   - Giant Swarm security notifications
 
-4. **Report the incident** to the Giant Swarm security team if needed
+3. **Regular updates**:
+   - Keep Go toolchain updated
+   - Rebuild Docker images regularly
+   - Apply security patches promptly
 
