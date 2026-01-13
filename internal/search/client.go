@@ -36,7 +36,7 @@ func NewClient(logger *slog.Logger) *Client {
 
 // Search performs a search query against the Giant Swarm documentation
 func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
-	// Build Elasticsearch query
+	// Build Elasticsearch/OpenSearch query
 	query := c.buildQuery(req)
 
 	// Marshal to JSON
@@ -114,7 +114,7 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 	return string(body), nil
 }
 
-// buildQuery constructs an Elasticsearch query from a SearchRequest
+// buildQuery constructs an Elasticsearch/OpenSearch query from a SearchRequest
 func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 	// Base query with function_score
 	baseQuery := map[string]interface{}{
@@ -198,7 +198,7 @@ func FormatSearchResults(term string, startIndex int, resp *SearchResponse) stri
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("# Search results for %s\n\n", term))
-	sb.WriteString(fmt.Sprintf("Showing %d out of %d search results", len(resp.Hits.Hits), resp.Hits.Total))
+	sb.WriteString(fmt.Sprintf("Showing %d out of %d search results", len(resp.Hits.Hits), resp.Hits.Total.Value))
 	if startIndex > 0 {
 		sb.WriteString(fmt.Sprintf(", starting at %d", startIndex+1))
 	}

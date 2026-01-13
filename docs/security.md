@@ -38,7 +38,7 @@ The Go implementation uses the standard `net/http` package which:
 
 ### What is sent to servers
 
-- Search queries are sent to Elasticsearch at docs.giantswarm.io
+- Search queries are sent to OpenSearch at docs.giantswarm.io
 - URL fetch requests to handbook.giantswarm.io or intranet.giantswarm.io
 - Standard HTTP headers (User-Agent, Accept, Content-Type)
 

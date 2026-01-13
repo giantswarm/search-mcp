@@ -345,5 +345,5 @@ make verify         # Run all verification steps
 - [MCP Documentation](https://modelcontextprotocol.io/)
 - [mcp-go](https://github.com/mark3labs/mcp-go)
 - [Go Documentation](https://golang.org/doc/)
-- [Elasticsearch 6.8 Query DSL](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/query-dsl.html)
+- [OpenSearch Query DSL](https://opensearch.org/docs/latest/query-dsl/)
 

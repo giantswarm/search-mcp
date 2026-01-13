@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Rewritten in Go
+- Work with OpenSearch v3.2 as a backend instead of Elasticsearch v6.8
 
 ### Removed
 

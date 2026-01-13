@@ -1,5 +1,7 @@
 package search
 
+import "encoding/json"
+
 // SearchRequest represents a search query request
 type SearchRequest struct {
 	Term             string
@@ -9,12 +11,39 @@ type SearchRequest struct {
 	BreadcrumbFilter []string
 }
 
-// SearchResponse represents the response from Elasticsearch
+// SearchResponse represents the response from Elasticsearch/OpenSearch
 type SearchResponse struct {
 	Hits struct {
-		Total int   `json:"total"`
-		Hits  []Hit `json:"hits"`
+		Total TotalHits `json:"total"`
+		Hits  []Hit     `json:"hits"`
 	} `json:"hits"`
+}
+
+// TotalHits can handle both ES 6.x (int) and ES 7.x+/OpenSearch (object) formats
+type TotalHits struct {
+	Value int
+}
+
+// UnmarshalJSON handles both integer and object formats for total hits
+// - ES 6.x returns: "total": 42
+// - ES 7.x+/OpenSearch returns: "total": {"value": 42, "relation": "eq"}
+func (t *TotalHits) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as an integer first (ES 6.x format)
+	var value int
+	if err := json.Unmarshal(data, &value); err == nil {
+		t.Value = value
+		return nil
+	}
+
+	// Try to unmarshal as an object (ES 7.x+/OpenSearch format)
+	var obj struct {
+		Value int `json:"value"`
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+	t.Value = obj.Value
+	return nil
 }
 
 // Hit represents a single search result
@@ -32,7 +61,7 @@ type HitSource struct {
 	Breadcrumb  []string `json:"breadcrumb,omitempty"`
 }
 
-// ElasticsearchQuery represents the Elasticsearch query structure
+// ElasticsearchQuery represents the Elasticsearch/OpenSearch query structure
 type ElasticsearchQuery struct {
 	From      int                    `json:"from"`
 	Size      int                    `json:"size"`

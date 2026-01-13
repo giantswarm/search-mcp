@@ -15,7 +15,7 @@ The server uses the public search endpoint:
 - **Public endpoint**: `https://docs.giantswarm.io/searchapi/`
   - No authentication required
   - Provides access to public documentation sources (docs, blog, etc.)
-  - Powered by Elasticsearch v6.8.x
+  - Powered by OpenSearch v3.2
 
 ### 2. Package Structure
 
@@ -42,14 +42,15 @@ search-mcp/
 
 ### 3. Search Backend
 
-The search functionality is powered by Elasticsearch v6.8.x:
+The search functionality is powered by OpenSearch v3.2:
 
-- Uses Elasticsearch query DSL with `function_score` and `simple_query_string`
+- Uses OpenSearch query DSL (Elasticsearch-compatible) with `function_score` and `simple_query_string`
 - Field weights: `title^5`, `uri^5`, `description^5`, `text`
 - Supports filters by type (e.g., "Blog", "Docs")
 - Supports breadcrumb filtering for specific sections
 - Implements scoring boosts for different content types
 - Returns highlighted excerpts from matching content
+- Compatible with both OpenSearch and Elasticsearch query syntax
 
 ### 4. Content Reading and Conversion
 
@@ -148,9 +149,9 @@ Return formatted content
    - Results formatted as Markdown
 
 4. **Search execution**
-   - Build Elasticsearch query with filters
+   - Build OpenSearch query with filters
    - POST to search API
-   - Parse JSON response
+   - Parse JSON response (handles both ES 6.x and OpenSearch 7.x+ formats)
    - Extract hits, highlights, metadata
    - Format as Markdown with titles, URLs, excerpts
 
