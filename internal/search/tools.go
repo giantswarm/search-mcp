@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/giantswarm/search-mcp/internal/auth"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -13,8 +14,15 @@ const (
 	itemsPerPageDefault = 10
 )
 
+// Tools that require authentication
+var authRequiredTools = map[string]bool{
+	"read_intranet_url": true,
+	"search_runbook":    true,
+	"search_ops_recipe": true,
+}
+
 // RegisterTools registers all search tools with the MCP server
-func RegisterTools(s *server.MCPServer, client *Client) {
+func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, transport string) {
 	// Register search tool
 	s.AddTool(mcp.Tool{
 		Name:        "search",
@@ -57,7 +65,7 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 	// Register search_runbook tool
 	s.AddTool(mcp.Tool{
 		Name:        "search_runbook",
-		Description: "Search for DevOps runbooks in the Giant Swarm intranet.",
+		Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -78,12 +86,12 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 			},
 			Required: []string{"term"},
 		},
-	}, searchRunbookHandler(client))
+	}, requireAuth(searchRunbookHandler(client), authMgr, transport))
 
 	// Register search_ops_recipe tool
 	s.AddTool(mcp.Tool{
 		Name:        "search_ops_recipe",
-		Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet.",
+		Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -104,7 +112,7 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 			},
 			Required: []string{"term"},
 		},
-	}, searchOpsRecipeHandler(client))
+	}, requireAuth(searchOpsRecipeHandler(client), authMgr, transport))
 
 	// Register read_handbook_url tool
 	s.AddTool(mcp.Tool{
@@ -125,7 +133,7 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 	// Register read_intranet_url tool
 	s.AddTool(mcp.Tool{
 		Name:        "read_intranet_url",
-		Description: "Read content from a single URL on the Giant Swarm intranet. Note: This may fail without authentication.",
+		Description: "Read content from a single URL on the Giant Swarm intranet. Requires authentication.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -136,7 +144,63 @@ func RegisterTools(s *server.MCPServer, client *Client) {
 			},
 			Required: []string{"url"},
 		},
-	}, readIntranetURLHandler(client))
+	}, requireAuth(readIntranetURLHandler(client), authMgr, transport))
+}
+
+// requireAuth wraps a handler to require authentication
+func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, transport string) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Phase 1: Stdio mode not supported
+		if transport == "stdio" {
+			return mcp.NewToolResultError(
+				"❌ Authentication not available in stdio mode (Phase 1)\n\n" +
+					"Intranet tools require authentication which is only available in HTTP mode.\n\n" +
+					"Please run the server with:\n" +
+					"  --transport=streamable-http --http-addr=:8080\n\n" +
+					"Then authenticate at: http://localhost:8080/oauth/login",
+			), nil
+		}
+
+		// Check if auth is configured
+		if authMgr == nil {
+			return mcp.NewToolResultError(
+				"❌ Authentication not configured\n\n" +
+					"This tool requires authentication to access Giant Swarm intranet.\n\n" +
+					"Please configure the following environment variables:\n" +
+					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
+					"  OAUTH_CLIENT_ID=searchmcp\n" +
+					"  OAUTH_CLIENT_SECRET=<your-secret>\n\n" +
+					"Then restart the server and authenticate by visiting:\n" +
+					"  http://localhost:8080/oauth/login",
+			), nil
+		}
+
+		// Check if user is authenticated
+		if !authMgr.IsAuthenticated() {
+			return mcp.NewToolResultError(
+				"❌ Authentication required\n\n" +
+					"You need to authenticate before accessing intranet resources.\n\n" +
+					"Please visit: http://localhost:8080/oauth/login\n\n" +
+					"After authenticating, you can use this tool.",
+			), nil
+		}
+
+		// Get valid token (will refresh if needed)
+		token, err := authMgr.GetToken(ctx)
+		if err != nil {
+			return mcp.NewToolResultError(
+				fmt.Sprintf("❌ Authentication failed: %v\n\n"+
+					"Your session may have expired. Please re-authenticate at:\n"+
+					"http://localhost:8080/oauth/login", err),
+			), nil
+		}
+
+		// Inject token into context for client to use
+		ctx = context.WithValue(ctx, "auth_token", token)
+
+		// Call original handler
+		return handler(ctx, request)
+	}
 }
 
 // searchHandler handles the search tool

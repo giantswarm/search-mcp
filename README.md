@@ -103,11 +103,11 @@ Search Giant Swarm documentation (public docs from docs.giantswarm.io).
 
 #### `search_runbook(term, start_index, size)`
 
-Search for DevOps runbooks in the documentation.
+Search for DevOps runbooks in the Giant Swarm intranet. **Requires authentication.**
 
 #### `search_ops_recipe(term, start_index, size)`
 
-Search for Ops Recipes (legacy runbooks) in the documentation.
+Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. **Requires authentication.**
 
 #### `read_handbook_url(url)`
 
@@ -118,10 +118,55 @@ Read content from Giant Swarm handbook (public, no authentication required).
 
 #### `read_intranet_url(url)`
 
-Read content from Giant Swarm intranet (may require authentication depending on deployment).
+Read content from Giant Swarm intranet. **Requires authentication.**
 
 **Parameters:**
 - `url` (required): URL from https://intranet.giantswarm.io/
+
+## Authentication
+
+The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks, ops recipes).
+
+### Quick Start
+
+1. **Set environment variables**:
+   ```bash
+   export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
+   export OAUTH_CLIENT_ID=searchmcp
+   export OAUTH_CLIENT_SECRET=<your-secret>
+   ```
+
+2. **Run in HTTP mode** (authentication requires HTTP transport):
+   ```bash
+   search-mcp serve --transport=streamable-http --http-addr=:8080
+   ```
+
+3. **Authenticate**:
+   - Visit http://localhost:8080/oauth/login
+   - Sign in with your Giant Swarm credentials
+   - You're authenticated!
+
+### What Requires Authentication?
+
+- ✅ **Public tools** (no auth required):
+  - `search` - Search public documentation
+  - `read_handbook_url` - Read public handbook pages
+
+- 🔒 **Intranet tools** (authentication required):
+  - `read_intranet_url` - Read intranet pages
+  - `search_runbook` - Search DevOps runbooks
+  - `search_ops_recipe` - Search ops recipes
+
+### Token Storage
+
+Tokens are encrypted and stored at:
+- **Linux**: `~/.config/giantswarm/tokens.enc`
+- **macOS**: `~/Library/Application Support/giantswarm/tokens.enc`
+- **Windows**: `%APPDATA%\giantswarm\tokens.enc`
+
+Tokens are automatically refreshed before expiration.
+
+For more details, see [Authentication Guide](docs/authentication.md).
 
 ## Configuration
 
@@ -132,6 +177,10 @@ Read content from Giant Swarm intranet (may require authentication depending on 
 - `--http-endpoint`: HTTP endpoint path (default: `/mcp`)
 - `--debug`: Enable debug logging
 - `--version`: Show version information
+
+## Known Issues / TODO
+
+- **Runbook search not returning results**: The `search_runbook` and `search_ops_recipe` tools are currently not returning any results. This is a known issue that needs investigation.
 
 ## Troubleshooting
 

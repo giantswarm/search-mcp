@@ -82,6 +82,19 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 
 // FetchURL fetches content from a URL
 func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
+	// Check if URL requires authentication (intranet)
+	requiresAuth := strings.HasPrefix(url, "https://intranet.giantswarm.io/")
+
+	// CRITICAL: Domain replacement for JWT authentication
+	// User-facing URL: https://intranet.giantswarm.io/
+	// Actual API URL:  https://intranet-searchmcp.giantswarm.io/
+	if requiresAuth {
+		url = strings.Replace(url, "intranet.giantswarm.io", "intranet-searchmcp.giantswarm.io", 1)
+		c.logger.Debug("domain replacement performed",
+			"original_domain", "intranet.giantswarm.io",
+			"target_domain", "intranet-searchmcp.giantswarm.io")
+	}
+
 	// Create a client with longer timeout for fetching pages
 	client := &http.Client{
 		Timeout: fetchTimeout,
@@ -92,11 +105,30 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Inject Bearer token if available in context (for authenticated requests)
+	if requiresAuth {
+		if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+token)
+			c.logger.Debug("auth token injected into request")
+		} else {
+			c.logger.Warn("intranet URL requested but no auth token in context")
+		}
+	}
+
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch URL: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Handle auth-specific status codes
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("authentication failed (401 Unauthorized): token may be invalid or expired")
+	}
+
+	if resp.StatusCode == http.StatusForbidden {
+		return "", fmt.Errorf("access denied (403 Forbidden): insufficient permissions")
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", fmt.Errorf("page not found: %s", url)
