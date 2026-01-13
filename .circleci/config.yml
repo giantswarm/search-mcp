@@ -9,6 +9,7 @@ workflows:
       - architect/go-build:
           context: architect
           name: go-build
+          binary: mcp-server
           filters:
             tags:
               only: /^v.*/
