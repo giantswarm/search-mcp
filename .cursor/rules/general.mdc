@@ -1,5 +1,5 @@
 ---
-description: General cursor rules for this project
+description: General rules for this project
 ---
 
 - Repository/project provides an MCP server to access several Giant Swarm documentation sources
@@ -8,7 +8,7 @@ description: General cursor rules for this project
 - Main entry point is `main.go` in project root
 - Core implementation in `internal/search/` package
 - `Dockerfile` provides multi-stage build for container image
-- CHANGELOG.md should be updated for all changes
+- CHANGELOG.md should be updated for all changes except internal nones. Mind the structure: we should use `### Added`, `### Changed`, `### Fixed` and `### Removed` sub-headings to structure the changes per release.
 - Use `make build` to build the binary
 - Use `make test` to run tests
 - Use GitHub MCP tools to follow actions on GitHub PRs
@@ -26,7 +26,7 @@ description: General cursor rules for this project
 
 - The search function at https://docs.giantswarm.io/searchapi/ is provided by OpenSearch v3.2
 - Uses public endpoint (no authentication required in current version)
-- Elasticsearch query structure uses v6.8.x query DSL with `function_score` and `simple_query_string`
+- OpenSearch query DSL (Elasticsearch-compatible) with `function_score` and `simple_query_string`
 - Field weights: `title^5`, `uri^5`, `description^5`, `text`
 - Results include highlights and excerpts
 
