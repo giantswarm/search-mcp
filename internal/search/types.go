@@ -12,14 +12,14 @@ type SearchRequest struct {
 // SearchResponse represents the response from Elasticsearch
 type SearchResponse struct {
 	Hits struct {
-		Total int `json:"total"`
+		Total int   `json:"total"`
 		Hits  []Hit `json:"hits"`
 	} `json:"hits"`
 }
 
 // Hit represents a single search result
 type Hit struct {
-	Source    HitSource         `json:"_source"`
+	Source    HitSource           `json:"_source"`
 	Highlight map[string][]string `json:"highlight,omitempty"`
 }
 
@@ -34,10 +34,10 @@ type HitSource struct {
 
 // ElasticsearchQuery represents the Elasticsearch query structure
 type ElasticsearchQuery struct {
-	From    int                    `json:"from"`
-	Size    int                    `json:"size"`
-	Sort    []string               `json:"sort"`
-	Source  map[string][]string    `json:"_source"`
-	Query   map[string]interface{} `json:"query"`
+	From      int                    `json:"from"`
+	Size      int                    `json:"size"`
+	Sort      []string               `json:"sort"`
+	Source    map[string][]string    `json:"_source"`
+	Query     map[string]interface{} `json:"query"`
 	Highlight map[string]interface{} `json:"highlight"`
 }
