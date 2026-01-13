@@ -7,12 +7,12 @@ description: General cursor rules for this project
 - Using Go modules for dependency management
 - Main entry point is `cmd/server/main.go`
 - Core implementation in `internal/search/` package
-- `go.mod` and `go.sum` manage dependencies - use `go mod tidy` after changes
 - `Dockerfile` provides multi-stage build for container image
 - CHANGELOG.md should be updated for all changes
 - Use `make build` to build the binary
 - Use `make test` to run tests
-- Follow Go coding standards: run `gofmt` and `goimports` on changes
+- Use GitHub MCP tools to follow actions on GitHub PRs
+- Use CircleCI MCP tools to follow build progress for PRs on CircleCI
 
 ## Documentation Structure
 

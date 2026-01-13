@@ -20,3 +20,7 @@ To pass this check, run this over all edited/added Go files:
 ```bash
 goimports -local github.com/giantswarm/search-mcp -w <path>
 ```
+
+## Dependencies
+
+- Use `go mod tidy` after changes to `go.mod` and after `go get` commands.
