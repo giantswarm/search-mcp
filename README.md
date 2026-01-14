@@ -129,6 +129,8 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
 
 ### Quick Start
 
+#### HTTP Mode (Streamable HTTP Transport)
+
 1. **Set environment variables**:
    ```bash
    export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
@@ -136,7 +138,7 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    export OAUTH_CLIENT_SECRET=<your-secret>
    ```
 
-2. **Run in HTTP mode** (authentication requires HTTP transport):
+2. **Run in HTTP mode**:
    ```bash
    search-mcp serve --transport=streamable-http --http-addr=:8080
    ```
@@ -145,6 +147,31 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    - Visit http://localhost:8080/oauth/login
    - Sign in with your Giant Swarm credentials
    - You're authenticated!
+
+#### Stdio Mode (Claude Desktop, Cursor, etc.)
+
+1. **Set environment variables**:
+   ```bash
+   export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
+   export OAUTH_CLIENT_ID=searchmcp
+   export OAUTH_CLIENT_SECRET=<your-secret>
+   ```
+
+2. **Run in stdio mode** (default):
+   ```bash
+   search-mcp serve
+   ```
+
+3. **Authenticate when needed**:
+   - When you use an intranet tool (like `read_intranet_url`), the server will display:
+     - A verification URL (e.g., http://localhost:8080/device)
+     - A device code (e.g., ABCD-EFGH)
+   - Visit the URL in your browser and enter the code
+   - Sign in with your Giant Swarm credentials
+   - Return to your MCP client and retry the tool
+   - You're now authenticated!
+
+**Note**: Stdio mode uses OAuth Device Authorization Grant (RFC 8628). The server automatically starts a background HTTP server on port 8080 for device authorization.
 
 ### What Requires Authentication?
 

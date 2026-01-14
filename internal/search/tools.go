@@ -150,15 +150,50 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 // requireAuth wraps a handler to require authentication
 func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, transport string) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Phase 1: Stdio mode not supported
+		// Stdio mode: Use device flow
 		if transport == "stdio" {
-			return mcp.NewToolResultError(
-				"❌ Authentication not available in stdio mode (Phase 1)\n\n" +
-					"Intranet tools require authentication which is only available in HTTP mode.\n\n" +
-					"Please run the server with:\n" +
-					"  --transport=streamable-http --http-addr=:8080\n\n" +
-					"Then authenticate at: http://localhost:8080/oauth/login",
-			), nil
+			// Check if auth manager is configured
+			if authMgr == nil {
+				return mcp.NewToolResultError(
+					"❌ Authentication not configured\n\n" +
+						"This tool requires authentication to access Giant Swarm intranet.\n\n" +
+						"Please configure the following environment variables:\n" +
+						"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
+						"  OAUTH_CLIENT_ID=searchmcp\n" +
+						"  OAUTH_CLIENT_SECRET=<your-secret>\n\n" +
+						"Then restart the server.",
+				), nil
+			}
+
+			// Check if already authenticated
+			if !authMgr.IsAuthenticated() {
+				// Need to initiate device flow
+				mgr, ok := authMgr.(*auth.Manager)
+				if !ok {
+					return mcp.NewToolResultError("❌ Internal error: invalid auth manager type"), nil
+				}
+
+				// Initiate device flow
+				deviceData, err := mgr.InitiateDeviceFlow(ctx)
+				if err != nil {
+					return mcp.NewToolResultError(fmt.Sprintf("❌ Failed to initiate authentication: %v", err)), nil
+				}
+
+				// Return instructions for user
+				return mcp.NewToolResultError(
+					fmt.Sprintf("❌ Authentication required\n\n"+
+						"To access intranet resources, please authorize this device:\n\n"+
+						"1. Visit: %s\n"+
+						"2. Enter code: %s\n"+
+						"3. Sign in with your Giant Swarm credentials\n\n"+
+						"After authorizing, please retry this tool.\n\n"+
+						"Code expires in 10 minutes.",
+						deviceData.VerificationURI,
+						deviceData.UserCode),
+				), nil
+			}
+
+			// Authenticated - proceed with request
 		}
 
 		// Check if auth is configured

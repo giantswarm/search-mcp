@@ -53,31 +53,36 @@ func NewServer(config ServerConfig) (*Server, error) {
 	// Create search client
 	searchClient := NewClient(logger)
 
-	// Initialize auth manager (only for HTTP mode)
+	// Initialize auth manager (for both HTTP and stdio mode)
 	var authMgr auth.AuthManager
+	var serverAddr string
 	if config.Transport == "streamable-http" {
-		authConfig := auth.Config{
-			IssuerURL:    os.Getenv("OAUTH_ISSUER_URL"),
-			ClientID:     os.Getenv("OAUTH_CLIENT_ID"),
-			ClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
-			Scopes:       []string{"openid", "offline_access"},
-			ServerAddr:   config.HTTPAddr,
-		}
+		serverAddr = config.HTTPAddr
+	} else {
+		serverAddr = ":8080" // Default for device flow verification URL
+	}
 
-		// Only create auth manager if configuration is provided
-		if authConfig.IssuerURL != "" && authConfig.ClientID != "" && authConfig.ClientSecret != "" {
-			var err error
-			authMgr, err = auth.NewManager(authConfig, logger)
-			if err != nil {
-				logger.Warn("auth manager initialization failed", "error", err,
-					"note", "Intranet tools will not be available")
-			} else {
-				logger.Info("authentication enabled", "issuer", authConfig.IssuerURL)
-			}
+	authConfig := auth.Config{
+		IssuerURL:    os.Getenv("OAUTH_ISSUER_URL"),
+		ClientID:     os.Getenv("OAUTH_CLIENT_ID"),
+		ClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
+		Scopes:       []string{"openid", "offline_access"},
+		ServerAddr:   serverAddr,
+	}
+
+	// Only create auth manager if configuration is provided
+	if authConfig.IssuerURL != "" && authConfig.ClientID != "" && authConfig.ClientSecret != "" {
+		var err error
+		authMgr, err = auth.NewManager(authConfig, logger)
+		if err != nil {
+			logger.Warn("auth manager initialization failed", "error", err,
+				"note", "Intranet tools will not be available")
 		} else {
-			logger.Info("authentication not configured",
-				"note", "Set OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, and OAUTH_CLIENT_SECRET to enable intranet access")
+			logger.Info("authentication enabled", "issuer", authConfig.IssuerURL, "transport", config.Transport)
 		}
+	} else {
+		logger.Info("authentication not configured",
+			"note", "Set OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, and OAUTH_CLIENT_SECRET to enable intranet access")
 	}
 
 	// Register tools
@@ -96,6 +101,11 @@ func NewServer(config ServerConfig) (*Server, error) {
 
 // Start starts the MCP server with the configured transport
 func (s *Server) Start(ctx context.Context) error {
+	// If auth is enabled in stdio mode, start background HTTP server for device flow
+	if s.config.Transport == "stdio" && s.authMgr != nil {
+		go s.startBackgroundHTTPForDeviceFlow()
+	}
+
 	switch s.config.Transport {
 	case "stdio":
 		return s.startStdio(ctx)
@@ -103,6 +113,28 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.startHTTP(ctx)
 	default:
 		return fmt.Errorf("unsupported transport: %s (supported: stdio, streamable-http)", s.config.Transport)
+	}
+}
+
+// startBackgroundHTTPForDeviceFlow starts a minimal HTTP server for device flow in stdio mode
+func (s *Server) startBackgroundHTTPForDeviceFlow() {
+	mux := http.NewServeMux()
+	s.registerOAuthRoutes(mux)
+
+	// Use :8080 as default for device flow in stdio mode
+	addr := ":8080"
+	if s.config.HTTPAddr != "" {
+		addr = s.config.HTTPAddr
+	}
+
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	s.logger.Info("starting background HTTP server for device flow", "addr", addr)
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		s.logger.Error("background HTTP server error", "error", err)
 	}
 }
 
@@ -218,6 +250,54 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 			return
 		}
 
+		// Check if this is a device flow authorization
+		cookie, err := r.Cookie("device_user_code")
+		if err == nil && cookie.Value != "" {
+			// Device flow - need to link tokens to the device
+			userCode := cookie.Value
+
+			// Clear the cookie
+			http.SetCookie(w, &http.Cookie{
+				Name:   "device_user_code",
+				Value:  "",
+				Path:   "/",
+				MaxAge: -1,
+			})
+
+			// The tokens were just stored in HandleCallback above
+			// Since both device flow and HTTP mode share the same token storage,
+			// the device can now use IsAuthenticated() to check for tokens
+			// Note: We don't need to call AuthorizeDevice on the device store
+			// because we're using a "retry" pattern instead of polling
+
+			s.logger.Info("device flow authorization completed", "user_code", userCode)
+
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Authorized</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        h1 { color: #2ecc71; }
+        p { line-height: 1.6; }
+        .code { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <h1>✓ Device Authorized</h1>
+    <p>Your device <span class="code">%s</span> has been successfully authorized.</p>
+    <p>You can now close this window and return to your device to access intranet resources.</p>
+</body>
+</html>
+			`, userCode)
+			return
+		}
+
+		// Standard OAuth flow (not device flow)
 		s.logger.Info("authentication successful")
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -243,7 +323,223 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 		`)
 	})
 
+	// Device flow authorization page
+	mux.HandleFunc("/device", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			s.serveDeviceAuthPage(w, r)
+		} else if r.Method == "POST" {
+			s.handleDeviceAuthorize(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	s.logger.Info("OAuth endpoints registered",
 		"login", "/oauth/login",
-		"callback", "/callback")
+		"callback", "/callback",
+		"device", "/device")
+}
+
+// serveDeviceAuthPage serves the device authorization page
+func (s *Server) serveDeviceAuthPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Authorization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .code-input {
+            width: 100%%;
+            padding: 12px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+        .btn {
+            width: 100%%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #1976d2;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Device Authorization</h1>
+        <div class="info">
+            Enter the code displayed on your device to authorize access to Giant Swarm intranet.
+        </div>
+        <form method="POST" action="/device">
+            <input
+                type="text"
+                name="user_code"
+                class="code-input"
+                placeholder="XXXX-XXXX"
+                pattern="[A-Z0-9]{4}-[A-Z0-9]{4}"
+                required
+                maxlength="9"
+                autocomplete="off"
+            />
+            <button type="submit" class="btn">Authorize Device</button>
+        </form>
+    </div>
+</body>
+</html>
+	`)
+}
+
+// handleDeviceAuthorize handles device authorization
+func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	userCode := r.FormValue("user_code")
+	if userCode == "" {
+		s.serveDeviceError(w, "User code is required")
+		return
+	}
+
+	// Get device data by user code
+	mgr, ok := s.authMgr.(*auth.Manager)
+	if !ok {
+		s.logger.Error("auth manager is not a Manager type")
+		s.serveDeviceError(w, "Internal server error")
+		return
+	}
+
+	deviceData, err := mgr.GetDeviceByUserCode(userCode)
+	if err != nil {
+		s.logger.Warn("invalid user code", "code", userCode, "error", err)
+		s.serveDeviceError(w, "Invalid or expired code. Please check the code and try again.")
+		return
+	}
+
+	// Initiate OAuth flow for this device
+	authURL, err := s.authMgr.InitiateAuth(r.Context())
+	if err != nil {
+		s.logger.Error("failed to initiate auth", "error", err)
+		s.serveDeviceError(w, "Failed to start authorization")
+		return
+	}
+
+	// Store user code in session/cookie for callback
+	http.SetCookie(w, &http.Cookie{
+		Name:     "device_user_code",
+		Value:    userCode,
+		Path:     "/",
+		MaxAge:   600, // 10 minutes
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	s.logger.Info("device authorization initiated", "user_code", userCode, "device_code", deviceData.DeviceCode)
+
+	// Redirect to OAuth provider
+	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
+}
+
+// serveDeviceError serves an error page for device authorization
+func (s *Server) serveDeviceError(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorization Error</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #c62828;
+            margin-top: 0;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #c62828;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❌ Authorization Error</h1>
+        <div class="error">%s</div>
+        <a href="/device" class="btn">Try Again</a>
+    </div>
+</body>
+</html>
+	`, message)
 }

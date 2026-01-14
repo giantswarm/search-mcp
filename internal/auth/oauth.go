@@ -18,6 +18,7 @@ type Manager struct {
 	tokenManager *TokenManager
 	logger       *slog.Logger
 	stateStore   map[string]bool // Simple in-memory state validation
+	deviceStore  *DeviceFlowStore
 }
 
 // NewManager creates a new OAuth authentication manager
@@ -55,12 +56,16 @@ func NewManager(config Config, logger *slog.Logger) (AuthManager, error) {
 	// Create token manager
 	tokenManager := NewTokenManager(storage, oauthConfig, logger)
 
+	// Create device flow store
+	deviceStore := NewDeviceFlowStore()
+
 	return &Manager{
 		config:       config,
 		oauthConfig:  oauthConfig,
 		tokenManager: tokenManager,
 		logger:       logger,
 		stateStore:   make(map[string]bool),
+		deviceStore:  deviceStore,
 	}, nil
 }
 
@@ -148,6 +153,44 @@ func (m *Manager) HandleCallback(ctx context.Context, code string, state string)
 // ClearTokens removes stored tokens (logout)
 func (m *Manager) ClearTokens() error {
 	return m.tokenManager.ClearTokens()
+}
+
+// InitiateDeviceFlow starts a device authorization flow
+func (m *Manager) InitiateDeviceFlow(ctx context.Context) (*DeviceCodeData, error) {
+	verificationURI := fmt.Sprintf("http://%s/device", m.config.ServerAddr)
+	if m.config.ServerAddr[0] == ':' {
+		verificationURI = fmt.Sprintf("http://localhost%s/device", m.config.ServerAddr)
+	}
+
+	return m.deviceStore.CreateDeviceCode(verificationURI)
+}
+
+// PollForToken polls for authorization and returns tokens when available
+func (m *Manager) PollForToken(ctx context.Context, deviceCode string) (*TokenData, error) {
+	data, err := m.deviceStore.GetByDeviceCode(deviceCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if !data.Authorized {
+		return nil, fmt.Errorf("authorization_pending")
+	}
+
+	// Authorization complete, clean up and return tokens
+	tokens := data.Tokens
+	m.deviceStore.Delete(deviceCode)
+
+	return tokens, nil
+}
+
+// GetDeviceByUserCode retrieves device data for user authorization
+func (m *Manager) GetDeviceByUserCode(userCode string) (*DeviceCodeData, error) {
+	return m.deviceStore.GetByUserCode(userCode)
+}
+
+// AuthorizeDeviceWithUserCode completes device authorization
+func (m *Manager) AuthorizeDeviceWithUserCode(userCode string, tokens *TokenData) error {
+	return m.deviceStore.AuthorizeDevice(userCode, tokens)
 }
 
 // formatError provides user-friendly error messages with guidance

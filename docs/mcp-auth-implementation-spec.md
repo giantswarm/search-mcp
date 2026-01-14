@@ -674,35 +674,276 @@ func (m *Manager) GetToken(ctx context.Context) (string, error) {
 }
 ```
 
-## 5. Phase 1: Stdio Mode Behavior
+## 5. Device Flow Implementation (Stdio Mode)
 
-### 5.1 Stdio Mode Handling
+### 5.1 Overview
 
-In Phase 1 (HTTP OAuth only), stdio mode will not support authentication:
+**Status**: ✅ Implemented
+
+Stdio mode now supports authentication via OAuth 2.1 Device Authorization Grant (RFC 8628). This enables authentication in MCP clients like Claude Desktop and Cursor.
+
+### 5.2 Device Flow Architecture
+
+**Components**:
+
+1. **Device Code Store** (`internal/auth/device_flow.go`)
+   - Manages pending device authorization requests
+   - Generates device codes and user-friendly codes
+   - Handles authorization state
+
+2. **Background HTTP Server** (`internal/search/server.go`)
+   - Starts automatically in stdio mode when OAuth is configured
+   - Runs on localhost:8080 for device authorization
+   - Provides /device endpoint for user code entry
+
+3. **Device Flow Methods** (`internal/auth/oauth.go`)
+   - `InitiateDeviceFlow()` - Creates device code and user code
+   - `GetDeviceByUserCode()` - Retrieves device data for authorization
+   - Authorization via standard OAuth callback
+
+### 5.3 Device Flow Sequence
+
+```
+┌─────────────┐                  ┌──────────────┐                ┌─────────┐
+│ MCP Client  │                  │  MCP Server  │                │   Dex   │
+│ (Cursor)    │                  │              │                │         │
+└─────────────┘                  └──────────────┘                └─────────┘
+      │                                 │                              │
+      │ 1. Call read_intranet_url      │                              │
+      │─────────────────────────────────>                              │
+      │                                 │                              │
+      │                                 │ 2. Check IsAuthenticated()   │
+      │                                 │    (returns false)           │
+      │                                 │                              │
+      │                                 │ 3. InitiateDeviceFlow()      │
+      │                                 │    - Generate device_code    │
+      │                                 │    - Generate user_code      │
+      │                                 │    - Store in device store   │
+      │                                 │                              │
+      │ 4. Return error with instructions                              │
+      │    "Visit http://localhost:8080/device"                        │
+      │    "Enter code: ABCD-EFGH"      │                              │
+      │<─────────────────────────────────                              │
+      │                                 │                              │
+      │                                 │ (Background HTTP Server      │
+      │                                 │  running on :8080)           │
+      │                                 │                              │
+      ┌──────────────────────────────────────────────────────────────┐ │
+      │ User opens browser and visits http://localhost:8080/device  │ │
+      └──────────────────────────────────────────────────────────────┘ │
+      │                                 │                              │
+      │ 5. GET /device                  │                              │
+      │─────────────────────────────────>                              │
+      │                                 │                              │
+      │ 6. HTML form with code input    │                              │
+      │<─────────────────────────────────                              │
+      │                                 │                              │
+      │ 7. POST /device (user_code)     │                              │
+      │─────────────────────────────────>                              │
+      │                                 │                              │
+      │                                 │ 8. Validate user_code        │
+      │                                 │    Set cookie with user_code │
+      │                                 │    Initiate OAuth            │
+      │                                 │                              │
+      │ 9. Redirect to Dex              │                              │
+      │─────────────────────────────────────────────────────────────────>
+      │                                 │                              │
+      │ 10. OAuth flow (login)          │                              │
+      │<────────────────────────────────────────────────────────────────
+      │                                 │                              │
+      │ 11. Callback with auth code     │                              │
+      │──────────────────────────────────────────────────────────────>  │
+      │                                 │                              │
+      │                                 │ 12. Exchange code for tokens │
+      │                                 │<─────────────────────────────│
+      │                                 │                              │
+      │                                 │ 13. Store tokens             │
+      │                                 │    (TokenManager)            │
+      │                                 │                              │
+      │ 14. Success page                │                              │
+      │<─────────────────────────────────                              │
+      │                                 │                              │
+      ┌──────────────────────────────────────────────────────────────┐ │
+      │ User returns to MCP client and retries the tool             │ │
+      └──────────────────────────────────────────────────────────────┘ │
+      │                                 │                              │
+      │ 15. Call read_intranet_url      │                              │
+      │─────────────────────────────────>                              │
+      │                                 │                              │
+      │                                 │ 16. Check IsAuthenticated()  │
+      │                                 │     (returns true - tokens   │
+      │                                 │      stored in TokenManager) │
+      │                                 │                              │
+      │                                 │ 17. GetToken() and make      │
+      │                                 │     authenticated request    │
+      │                                 │                              │
+      │ 18. Success response            │                              │
+      │<─────────────────────────────────                              │
+```
+
+### 5.4 Implementation Details
+
+**Device Code Generation** (`internal/auth/device_flow.go`):
 
 ```go
-// Update tool handlers to check transport mode
-func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager,
-                 transport string) server.ToolHandlerFunc {
+type DeviceCodeData struct {
+    DeviceCode      string        // Long secure code (32 bytes base64)
+    UserCode        string        // Short code (8 chars, format: XXXX-XXXX)
+    VerificationURI string        // http://localhost:8080/device
+    ExpiresAt       time.Time     // 10 minute expiry
+    Interval        int           // Not used (retry pattern instead)
+    Authorized      bool          // Not used (tokens in TokenManager)
+    Tokens          *TokenData    // Not used (tokens in TokenManager)
+}
+
+func (s *DeviceFlowStore) CreateDeviceCode(verificationURI string) (*DeviceCodeData, error) {
+    deviceCode, _ := generateRandomCode(32)      // Cryptographically secure
+    userCode, _ := generateUserCode()            // Human-friendly
+
+    data := &DeviceCodeData{
+        DeviceCode:      deviceCode,
+        UserCode:        userCode,
+        VerificationURI: verificationURI,
+        ExpiresAt:       time.Now().Add(10 * time.Minute),
+        Interval:        5,  // Not used in retry pattern
+    }
+
+    return data, nil
+}
+```
+
+**Tool Handler** (`internal/search/tools.go`):
+
+```go
+func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, transport string) server.ToolHandlerFunc {
     return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-        if !authRequiredTools[request.Name] {
-            return handler(ctx, request)
-        }
-
-        // Phase 1: Stdio mode not supported
+        // Stdio mode: Use device flow
         if transport == "stdio" {
-            return mcp.NewToolResultError(
-                "Authentication not available in stdio mode (Phase 1)\n" +
-                "Intranet tools require authentication which is only available in HTTP mode.\n" +
-                "Please run the server with: --transport=streamable-http --http-addr=:8080\n" +
-                "Then authenticate at: http://localhost:8080/oauth/login",
-            ), nil
+            if authMgr == nil {
+                return mcp.NewToolResultError(
+                    "❌ Authentication not configured\n\n" +
+                    "Please configure environment variables:\n" +
+                    "  OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET",
+                ), nil
+            }
+
+            if !authMgr.IsAuthenticated() {
+                mgr, _ := authMgr.(*auth.Manager)
+                deviceData, _ := mgr.InitiateDeviceFlow(ctx)
+
+                return mcp.NewToolResultError(
+                    fmt.Sprintf("❌ Authentication required\n\n"+
+                        "To access intranet resources, please authorize this device:\n\n"+
+                        "1. Visit: %s\n"+
+                        "2. Enter code: %s\n"+
+                        "3. Sign in with your Giant Swarm credentials\n\n"+
+                        "After authorizing, please retry this tool.\n\n"+
+                        "Code expires in 10 minutes.",
+                        deviceData.VerificationURI,
+                        deviceData.UserCode),
+                ), nil
+            }
         }
 
-        // ... existing auth checks for HTTP mode ...
+        // HTTP mode and authenticated stdio mode continue...
+        token, _ := authMgr.GetToken(ctx)
+        ctx = context.WithValue(ctx, "auth_token", token)
+        return handler(ctx, request)
     }
 }
 ```
+
+**Background HTTP Server** (`internal/search/server.go`):
+
+```go
+func (s *Server) startBackgroundHTTPForDeviceFlow() {
+    if s.authMgr == nil {
+        return
+    }
+
+    mux := http.NewServeMux()
+
+    // Device authorization endpoint
+    mux.HandleFunc("/device", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "GET" {
+            s.serveDeviceAuthPage(w, r)  // HTML form
+        } else if r.Method == "POST" {
+            s.handleDeviceAuthorize(w, r)  // Process user code
+        }
+    })
+
+    // OAuth callback
+    mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+        code := r.URL.Query().Get("code")
+        state := r.URL.Query().Get("state")
+
+        err := s.authMgr.HandleCallback(r.Context(), code, state)
+        // Tokens now stored in TokenManager
+
+        // Check if this is device flow (cookie present)
+        cookie, _ := r.Cookie("device_user_code")
+        if cookie.Value != "" {
+            // Device flow - show success page
+            s.serveDeviceSuccess(w, cookie.Value)
+        } else {
+            // Standard OAuth - show success page
+            s.serveOAuthSuccess(w)
+        }
+    })
+
+    // OAuth login
+    mux.HandleFunc("/oauth/login", s.handleOAuthLogin)
+
+    httpServer := &http.Server{Addr: ":8080", Handler: mux}
+    httpServer.ListenAndServe()
+}
+```
+
+### 5.5 Key Design Decisions
+
+**1. Retry Pattern vs Polling**
+
+**Decision**: Use retry pattern instead of automatic polling
+
+**Rationale**:
+- MCP protocol is request-response, not streaming
+- Polling would require client-side implementation
+- Retry pattern is simpler and works with all MCP clients
+- User explicitly retries tool after authorization
+
+**2. Shared Token Storage**
+
+**Decision**: Store tokens in TokenManager, not in DeviceFlowStore
+
+**Rationale**:
+- Both HTTP and stdio mode share same token storage
+- Simplifies authentication check (single `IsAuthenticated()`)
+- Tokens persist across device flow completions
+- No need for separate polling mechanism
+
+**3. Background HTTP Server Port**
+
+**Decision**: Always use port 8080 for stdio mode
+
+**Rationale**:
+- Predictable URL for users
+- Matches HTTP mode default port
+- Simple configuration
+- Can be changed via environment if needed (future)
+
+### 5.6 Limitations
+
+1. **Single Port**: Background HTTP server always uses :8080
+   - Multiple stdio instances cannot run simultaneously
+   - Port conflicts require stopping other instances
+
+2. **No Auto-Polling**: User must manually retry tool
+   - Could implement automatic polling in future
+   - Would require MCP client cooperation
+
+3. **10-Minute Expiry**: Device codes expire after 10 minutes
+   - User must restart flow if code expires
+   - Sufficient for typical authorization time
 
 ## 6. Testing Strategy
 
@@ -960,12 +1201,16 @@ ls -l ~/.config/giantswarm/tokens.enc
 4. **Regular token rotation**: Re-authenticate periodically
 5. **Monitor access**: Check Dex logs for unauthorized access
 
-## Phase 1 Limitations
+## Implementation Status
 
-**Current Phase**: HTTP OAuth flow only
+**Implemented**:
+- ✅ HTTP OAuth flow (Authorization Code with PKCE)
+- ✅ Stdio mode authentication (Device Authorization Grant - RFC 8628)
+- ✅ Encrypted token storage
+- ✅ Automatic token refresh
+- ✅ Multi-transport support (stdio and HTTP)
 
 **Not Yet Supported**:
-- ❌ Stdio mode authentication (device flow)
 - ❌ CIMD (Client ID Metadata Documents)
 - ❌ Multi-user sessions in HTTP mode
 - ❌ Custom token lifetimes
