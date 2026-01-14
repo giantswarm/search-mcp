@@ -42,22 +42,40 @@ func (m *TokenManager) GetToken(ctx context.Context) (string, error) {
 		m.currentToken = tokens
 	}
 
-	// Check if token needs refresh
-	if m.currentToken.NeedsRefresh() {
-		m.logger.Debug("token nearing expiration, attempting refresh",
-			"expires_at", m.currentToken.Expiry,
-			"time_until_expiry", time.Until(m.currentToken.Expiry))
+	// Check if token is expired or needs refresh
+	isExpired := !m.currentToken.IsValid()
+	needsRefresh := m.currentToken.NeedsRefresh()
+
+	if isExpired || needsRefresh {
+		// Log appropriate message based on token state
+		if isExpired {
+			m.logger.Debug("token expired, attempting transparent refresh",
+				"expires_at", m.currentToken.Expiry,
+				"expired_since", time.Since(m.currentToken.Expiry))
+		} else {
+			m.logger.Debug("token nearing expiration, attempting refresh",
+				"expires_at", m.currentToken.Expiry,
+				"time_until_expiry", time.Until(m.currentToken.Expiry))
+		}
 
 		m.logger.Debug("current token details before refresh",
 			"access_token", m.currentToken.AccessToken,
 			"id_token", m.currentToken.IDToken,
 			"has_refresh_token", m.currentToken.RefreshToken != "")
 
+		// Attempt to refresh the token
 		newTokens, err := m.refreshToken(ctx)
 		if err != nil {
 			m.logger.Debug("token refresh failed",
 				"error", err,
-				"old_expiry", m.currentToken.Expiry)
+				"old_expiry", m.currentToken.Expiry,
+				"was_expired", isExpired)
+
+			// If token was expired and refresh failed, return token expired error
+			if isExpired {
+				return "", fmt.Errorf("%w: %v", ErrTokenExpired, err)
+			}
+			// If token was just nearing expiration, return refresh failed error
 			return "", fmt.Errorf("token refresh failed: %w", err)
 		}
 
@@ -77,12 +95,13 @@ func (m *TokenManager) GetToken(ctx context.Context) (string, error) {
 
 		m.currentToken = newTokens
 		m.logger.Info("token refreshed successfully",
-			"new_expiry", m.currentToken.Expiry)
+			"new_expiry", m.currentToken.Expiry,
+			"was_expired", isExpired)
 	}
 
-	// Check if token is valid
+	// Final validation check - token should be valid at this point
 	if !m.currentToken.IsValid() {
-		m.logger.Debug("token validation failed",
+		m.logger.Error("token still invalid after refresh attempt",
 			"expiry", m.currentToken.Expiry,
 			"is_expired", time.Now().After(m.currentToken.Expiry))
 		return "", ErrTokenExpired
