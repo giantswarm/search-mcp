@@ -71,12 +71,15 @@ func NewManager(config Config, logger *slog.Logger) (AuthManager, error) {
 
 // GetToken returns a valid access token, refreshing if necessary
 func (m *Manager) GetToken(ctx context.Context) (string, error) {
+	m.logger.Debug("GetToken called")
 	token, err := m.tokenManager.GetToken(ctx)
 	if err != nil {
+		m.logger.Debug("GetToken failed", "error", err)
 		// Provide detailed error message based on error type
 		return "", m.formatError(err)
 	}
 
+	m.logger.Debug("GetToken returning token", "token", token)
 	return token, nil
 }
 
@@ -119,11 +122,21 @@ func (m *Manager) HandleCallback(ctx context.Context, code string, state string)
 	// Remove used state
 	delete(m.stateStore, state)
 
+	m.logger.Debug("exchanging authorization code for tokens",
+		"code", code[:10]+"...")
+
 	// Exchange code for tokens
 	token, err := m.oauthConfig.Exchange(ctx, code)
 	if err != nil {
+		m.logger.Debug("token exchange failed", "error", err)
 		return fmt.Errorf("failed to exchange code for token: %w", err)
 	}
+
+	m.logger.Debug("received tokens from OAuth provider",
+		"access_token", token.AccessToken,
+		"refresh_token", token.RefreshToken,
+		"token_type", token.TokenType,
+		"expiry", token.Expiry)
 
 	// Convert to TokenData
 	tokenData := &TokenData{
@@ -136,6 +149,10 @@ func (m *Manager) HandleCallback(ctx context.Context, code string, state string)
 	// Extract ID token if present
 	if idToken, ok := token.Extra("id_token").(string); ok {
 		tokenData.IDToken = idToken
+		m.logger.Debug("extracted ID token from OAuth response",
+			"id_token", idToken)
+	} else {
+		m.logger.Debug("no ID token in OAuth response")
 	}
 
 	// Store tokens
