@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	publicSearchEndpoint = "https://docs.giantswarm.io/searchapi/"
-	searchTimeout        = 30 * time.Second
-	fetchTimeout         = 60 * time.Second
+	publicSearchEndpoint   = "https://docs.giantswarm.io/searchapi/"
+	intranetSearchEndpoint = "https://intranet-searchmcp.giantswarm.io/searchapi/"
+	searchTimeout          = 30 * time.Second
+	fetchTimeout           = 60 * time.Second
 )
 
 // Client handles search operations
@@ -47,14 +48,29 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 
 	c.logger.Debug("search query", "payload", string(payload))
 
+	// Determine endpoint based on auth token presence
+	endpoint := publicSearchEndpoint
+	var authToken string
+	if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+		endpoint = intranetSearchEndpoint
+		authToken = token
+		c.logger.Debug("using authenticated intranet search endpoint")
+	}
+
 	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", publicSearchEndpoint, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
+
+	// Add auth token if present
+	if authToken != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+authToken)
+		c.logger.Debug("auth token added to search request")
+	}
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
@@ -161,8 +177,8 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 			"functions": []map[string]interface{}{
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Intranet"}}, "weight": 10},
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Blog"}}, "weight": 0.01},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb_1": "changes"}}, "weight": 0.0001},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb_1": "api"}}, "weight": 0.0001},
+				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "changes"}}, "weight": 0.0001},
+				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "api"}}, "weight": 0.0001},
 			},
 		},
 	}
@@ -179,11 +195,14 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 	}
 
 	// Add breadcrumb filters
+	// The index has both 'breadcrumb' (array) and 'breadcrumb_1', 'breadcrumb_2', etc. (positional strings)
+	// We use the positional fields to match specific positions in the hierarchy
+	// These are keyword fields, so we use 'term' queries for exact matching
 	if len(req.BreadcrumbFilter) > 0 {
 		for i, breadcrumb := range req.BreadcrumbFilter {
 			fieldName := fmt.Sprintf("breadcrumb_%d", i+1)
 			mustClauses = append(mustClauses, map[string]interface{}{
-				"match": map[string]string{fieldName: breadcrumb},
+				"term": map[string]string{fieldName: breadcrumb},
 			})
 		}
 	}

@@ -207,7 +207,7 @@ For more details, see [Authentication Guide](docs/authentication.md).
 
 ## Known Issues / TODO
 
-- **Runbook search not returning results**: The `search_runbook` and `search_ops_recipe` tools are currently not returning any results. This is a known issue that needs investigation.
+None at this time.
 
 ## Troubleshooting
 
