@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	publicSearchEndpoint = "https://docs.giantswarm.io/searchapi/"
-	searchTimeout        = 30 * time.Second
-	fetchTimeout         = 60 * time.Second
+	publicSearchEndpoint   = "https://docs.giantswarm.io/searchapi/"
+	intranetSearchEndpoint = "https://intranet-searchmcp.giantswarm.io/searchapi/"
+	searchTimeout          = 30 * time.Second
+	fetchTimeout           = 60 * time.Second
 )
 
 // Client handles search operations
@@ -47,14 +48,29 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 
 	c.logger.Debug("search query", "payload", string(payload))
 
+	// Determine endpoint based on auth token presence
+	endpoint := publicSearchEndpoint
+	var authToken string
+	if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+		endpoint = intranetSearchEndpoint
+		authToken = token
+		c.logger.Debug("using authenticated intranet search endpoint")
+	}
+
 	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", publicSearchEndpoint, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
+
+	// Add auth token if present
+	if authToken != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+authToken)
+		c.logger.Debug("auth token added to search request")
+	}
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
@@ -82,6 +98,19 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 
 // FetchURL fetches content from a URL
 func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
+	// Check if URL requires authentication (intranet)
+	requiresAuth := strings.HasPrefix(url, "https://intranet.giantswarm.io/")
+
+	// CRITICAL: Domain replacement for JWT authentication
+	// User-facing URL: https://intranet.giantswarm.io/
+	// Actual API URL:  https://intranet-searchmcp.giantswarm.io/
+	if requiresAuth {
+		url = strings.Replace(url, "intranet.giantswarm.io", "intranet-searchmcp.giantswarm.io", 1)
+		c.logger.Debug("domain replacement performed",
+			"original_domain", "intranet.giantswarm.io",
+			"target_domain", "intranet-searchmcp.giantswarm.io")
+	}
+
 	// Create a client with longer timeout for fetching pages
 	client := &http.Client{
 		Timeout: fetchTimeout,
@@ -92,11 +121,30 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Inject Bearer token if available in context (for authenticated requests)
+	if requiresAuth {
+		if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+token)
+			c.logger.Debug("auth token injected into request")
+		} else {
+			c.logger.Warn("intranet URL requested but no auth token in context")
+		}
+	}
+
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch URL: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Handle auth-specific status codes
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("authentication failed (401 Unauthorized): token may be invalid or expired")
+	}
+
+	if resp.StatusCode == http.StatusForbidden {
+		return "", fmt.Errorf("access denied (403 Forbidden): insufficient permissions")
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", fmt.Errorf("page not found: %s", url)
@@ -129,8 +177,8 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 			"functions": []map[string]interface{}{
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Intranet"}}, "weight": 10},
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Blog"}}, "weight": 0.01},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb_1": "changes"}}, "weight": 0.0001},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb_1": "api"}}, "weight": 0.0001},
+				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "changes"}}, "weight": 0.0001},
+				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "api"}}, "weight": 0.0001},
 			},
 		},
 	}
@@ -147,11 +195,14 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 	}
 
 	// Add breadcrumb filters
+	// The index has both 'breadcrumb' (array) and 'breadcrumb_1', 'breadcrumb_2', etc. (positional strings)
+	// We use the positional fields to match specific positions in the hierarchy
+	// These are keyword fields, so we use 'term' queries for exact matching
 	if len(req.BreadcrumbFilter) > 0 {
 		for i, breadcrumb := range req.BreadcrumbFilter {
 			fieldName := fmt.Sprintf("breadcrumb_%d", i+1)
 			mustClauses = append(mustClauses, map[string]interface{}{
-				"match": map[string]string{fieldName: breadcrumb},
+				"term": map[string]string{fieldName: breadcrumb},
 			})
 		}
 	}

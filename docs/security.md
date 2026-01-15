@@ -2,13 +2,48 @@
 
 This document covers security considerations for the Giant Swarm Search MCP Server.
 
-## Authentication Status
+## Authentication
 
-**Note**: Authentication is currently not implemented in this version of the server. The server only accesses public endpoints that do not require authentication.
+The server implements OAuth 2.1 authentication with PKCE for accessing Giant Swarm's internal resources.
 
-- Public documentation at `docs.giantswarm.io` is accessible without credentials
-- Internal resources at `intranet.giantswarm.io` may require authentication in future versions
-- Authentication will be implemented differently in a future release
+### Authentication Model
+
+- **Public endpoints** (`docs.giantswarm.io`, `handbook.giantswarm.io`): No authentication required
+- **Intranet endpoints** (`intranet.giantswarm.io`): OAuth 2.1 authentication required
+- **Identity Provider**: Dex at `https://dex.operations.awsprod.gigantic.io`
+- **OAuth Scopes**: `openid`, `offline_access`
+
+### Token Security
+
+**Storage:**
+- Tokens encrypted at rest using AES-256-GCM
+- File permissions: 0600 (owner read/write only)
+- Stored in platform-specific config directories
+
+**Encryption:**
+- Algorithm: AES-256-GCM (authenticated encryption)
+- Key derivation: Machine-specific identifiers (hardware UUID, machine-id, hostname)
+- Nonce: Unique random nonce per encryption operation
+
+**Token Lifecycle:**
+- Access tokens valid for ~1 hour (determined by Dex)
+- Refresh tokens valid for ~30 days (determined by Dex)
+- Automatic proactive refresh when <20% of lifetime remains
+- Refresh uses lock-based concurrency control
+
+**Security Features:**
+- ✅ Tokens never logged or exposed in error messages
+- ✅ Bearer tokens transmitted only over HTTPS
+- ✅ CSRF protection with random state parameter
+- ✅ Automatic deletion of corrupted token files
+- ✅ OAuth 2.1 with PKCE (Proof Key for Code Exchange)
+
+### Authentication Limitations (Phase 1)
+
+- ❌ **Stdio mode**: Authentication not available (Phase 1 - HTTP only)
+- ❌ **Multi-user sessions**: Single-user mode only
+- ❌ **Token revocation**: No active revocation mechanism
+- ❌ **Session management**: No explicit logout endpoint
 
 ## Network Security
 
@@ -86,23 +121,30 @@ The Go implementation uses the standard `net/http` package which:
 
 ### Threats Mitigated
 
-✅ **Man-in-the-middle attacks**: HTTPS with certificate verification enabled by default  
-✅ **Code injection**: Input validation on all tool parameters  
+✅ **Man-in-the-middle attacks**: HTTPS with certificate verification enabled by default
+✅ **Code injection**: Input validation on all tool parameters
 ✅ **Container security**: Run as non-root user, minimal attack surface
+✅ **Token theft (at rest)**: AES-256-GCM encryption with file permissions 0600
+✅ **Token theft (in transit)**: Bearer tokens only over HTTPS
+✅ **CSRF attacks**: Random state parameter validation in OAuth flow
+✅ **Unauthorized intranet access**: OAuth 2.1 authentication required
 
 ### Current Limitations
 
-⚠️ **No authentication**: Server accesses only public endpoints
-⚠️ **No rate limiting**: Consider adding for production deployments  
+⚠️ **Stdio mode authentication**: Not available in Phase 1 (HTTP only)
+⚠️ **No rate limiting**: Consider adding for production deployments
 ⚠️ **No input sanitization for HTML**: Relies on third-party libraries for safe conversion
+⚠️ **Machine-derived encryption keys**: Security depends on machine uniqueness
 
 ### Recommended Improvements for Production
 
-1. **Add rate limiting** to prevent abuse of search API
-2. **Implement request logging** for audit trail
-3. **Add health checks** for monitoring
-4. **Set up alerts** for error conditions
-5. **Consider adding authentication** when accessing protected resources
+1. **Add rate limiting** to prevent abuse of search and auth endpoints
+2. **Implement request logging** for audit trail (especially auth events)
+3. **Add health checks** for monitoring (including auth system health)
+4. **Set up alerts** for error conditions (especially auth failures)
+5. **Implement device flow** for stdio mode authentication (Phase 2)
+6. **Add token revocation** mechanism for security incidents
+7. **Consider hardware security modules** for encryption key storage
 
 ## Security Updates
 

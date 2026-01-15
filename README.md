@@ -103,11 +103,11 @@ Search Giant Swarm documentation (public docs from docs.giantswarm.io).
 
 #### `search_runbook(term, start_index, size)`
 
-Search for DevOps runbooks in the documentation.
+Search for DevOps runbooks in the Giant Swarm intranet. **Requires authentication.**
 
 #### `search_ops_recipe(term, start_index, size)`
 
-Search for Ops Recipes (legacy runbooks) in the documentation.
+Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. **Requires authentication.**
 
 #### `read_handbook_url(url)`
 
@@ -118,10 +118,82 @@ Read content from Giant Swarm handbook (public, no authentication required).
 
 #### `read_intranet_url(url)`
 
-Read content from Giant Swarm intranet (may require authentication depending on deployment).
+Read content from Giant Swarm intranet. **Requires authentication.**
 
 **Parameters:**
 - `url` (required): URL from https://intranet.giantswarm.io/
+
+## Authentication
+
+The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks, ops recipes).
+
+### Quick Start
+
+#### HTTP Mode (Streamable HTTP Transport)
+
+1. **Set environment variables**:
+   ```bash
+   export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
+   export OAUTH_CLIENT_ID=searchmcp
+   export OAUTH_CLIENT_SECRET=<your-secret>
+   ```
+
+2. **Run in HTTP mode**:
+   ```bash
+   search-mcp serve --transport=streamable-http --http-addr=:8080
+   ```
+
+3. **Authenticate**:
+   - Visit http://localhost:8080/oauth/login
+   - Sign in with your Giant Swarm credentials
+   - You're authenticated!
+
+#### Stdio Mode (Claude Desktop, Cursor, etc.)
+
+1. **Set environment variables**:
+   ```bash
+   export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
+   export OAUTH_CLIENT_ID=searchmcp
+   export OAUTH_CLIENT_SECRET=<your-secret>
+   ```
+
+2. **Run in stdio mode** (default):
+   ```bash
+   search-mcp serve
+   ```
+
+3. **Authenticate when needed**:
+   - When you use an intranet tool (like `read_intranet_url`), the server will display:
+     - A verification URL (e.g., http://localhost:8080/device)
+     - A device code (e.g., ABCD-EFGH)
+   - Visit the URL in your browser and enter the code
+   - Sign in with your Giant Swarm credentials
+   - Return to your MCP client and retry the tool
+   - You're now authenticated!
+
+**Note**: Stdio mode uses OAuth Device Authorization Grant (RFC 8628). The server automatically starts a background HTTP server on port 8080 for device authorization.
+
+### What Requires Authentication?
+
+- ✅ **Public tools** (no auth required):
+  - `search` - Search public documentation
+  - `read_handbook_url` - Read public handbook pages
+
+- 🔒 **Intranet tools** (authentication required):
+  - `read_intranet_url` - Read intranet pages
+  - `search_runbook` - Search DevOps runbooks
+  - `search_ops_recipe` - Search ops recipes
+
+### Token Storage
+
+Tokens are encrypted and stored at:
+- **Linux**: `~/.config/giantswarm/tokens.enc`
+- **macOS**: `~/Library/Application Support/giantswarm/tokens.enc`
+- **Windows**: `%APPDATA%\giantswarm\tokens.enc`
+
+Tokens are automatically refreshed before expiration.
+
+For more details, see [Authentication Guide](docs/authentication.md).
 
 ## Configuration
 
@@ -132,6 +204,10 @@ Read content from Giant Swarm intranet (may require authentication depending on 
 - `--http-endpoint`: HTTP endpoint path (default: `/mcp`)
 - `--debug`: Enable debug logging
 - `--version`: Show version information
+
+## Known Issues / TODO
+
+None at this time.
 
 ## Troubleshooting
 
