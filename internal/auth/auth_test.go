@@ -70,10 +70,10 @@ func TestTokenData_IsValid(t *testing.T) {
 
 func TestTokenData_NeedsRefresh(t *testing.T) {
 	tests := []struct {
-		name          string
-		token         *TokenData
-		expected      bool
-		description   string
+		name        string
+		token       *TokenData
+		expected    bool
+		description string
 	}{
 		{
 			name:        "nil token",

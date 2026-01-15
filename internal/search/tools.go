@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/giantswarm/search-mcp/internal/auth"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/giantswarm/search-mcp/internal/auth"
 )
 
 const (

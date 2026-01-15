@@ -24,8 +24,8 @@ type DeviceCodeData struct {
 
 // DeviceFlowStore manages device authorization requests
 type DeviceFlowStore struct {
-	mu     sync.RWMutex
-	codes  map[string]*DeviceCodeData // device_code -> data
+	mu      sync.RWMutex
+	codes   map[string]*DeviceCodeData // device_code -> data
 	byCodes map[string]string          // user_code -> device_code
 }
 
@@ -59,7 +59,7 @@ func (s *DeviceFlowStore) CreateDeviceCode(verificationURI string) (*DeviceCodeD
 		UserCode:        userCode,
 		VerificationURI: verificationURI,
 		ExpiresAt:       time.Now().Add(10 * time.Minute), // 10 minute expiry
-		Interval:        5,                                  // Poll every 5 seconds
+		Interval:        5,                                // Poll every 5 seconds
 		Authorized:      false,
 	}
 

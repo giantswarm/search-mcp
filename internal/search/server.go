@@ -10,8 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/giantswarm/search-mcp/internal/auth"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/giantswarm/search-mcp/internal/auth"
 )
 
 // ServerConfig holds configuration for the MCP server

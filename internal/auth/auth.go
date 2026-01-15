@@ -8,11 +8,11 @@ import (
 
 // Common errors
 var (
-	ErrTokenNotFound  = errors.New("no valid authentication token found")
-	ErrTokenExpired   = errors.New("authentication token expired")
-	ErrRefreshFailed  = errors.New("token refresh failed")
-	ErrNotConfigured  = errors.New("authentication not configured")
-	ErrInvalidToken   = errors.New("invalid authentication token")
+	ErrTokenNotFound = errors.New("no valid authentication token found")
+	ErrTokenExpired  = errors.New("authentication token expired")
+	ErrRefreshFailed = errors.New("token refresh failed")
+	ErrNotConfigured = errors.New("authentication not configured")
+	ErrInvalidToken  = errors.New("invalid authentication token")
 )
 
 // AuthManager defines the interface for authentication management
