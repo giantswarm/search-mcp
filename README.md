@@ -24,13 +24,21 @@ An MCP (Model Context Protocol) server that provides AI assistants with search a
       "run",
       "-i",
       "--rm",
-      "gsoci.azurecr.io/giantswarm/search-mcp:latest",
+      "gsoci.azurecr.io/giantswarm/search-mcp:TAG",
       "serve"
    ]
 }
 ```
 
-Make sure to adapt the version tag to the version you intend to use. [Check here](https://oci.dag.dev/?repo=gsoci.azurecr.io%2Fgiantswarm%2Fsearch-mcp) for available versions.
+or alternatively with the binary installed
+
+"giantswarm-search": {
+   "command": "search-mcp",
+   "args": ["serve"]
+}
+```
+
+Make sure to adapt the version TAG to the version you intend to use. [Check here](https://oci.dag.dev/?repo=gsoci.azurecr.io%2Fgiantswarm%2Fsearch-mcp) for available versions.
 
 ### Installation
 
@@ -44,18 +52,18 @@ go install github.com/giantswarm/search-mcp@latest
 
 ```bash
 # Pull the image
-docker pull gsoci.azurecr.io/giantswarm/search-mcp:latest
+docker pull gsoci.azurecr.io/giantswarm/search-mcp:TAG
 
 # Run with stdio transport (for direct interaction)
-docker run -i --rm gsoci.azurecr.io/giantswarm/search-mcp:latest serve
+docker run -i --rm gsoci.azurecr.io/giantswarm/search-mcp:TAG serve
 
 # Run with HTTP transport (for network access)
 docker run -d -p 8080:8080 \
-  gsoci.azurecr.io/giantswarm/search-mcp:latest \
+  gsoci.azurecr.io/giantswarm/search-mcp:TAG \
   serve --transport=streamable-http --http-addr=:8080
 
 # Check version
-docker run --rm gsoci.azurecr.io/giantswarm/search-mcp:latest version
+docker run --rm gsoci.azurecr.io/giantswarm/search-mcp:TAG version
 ```
 
 #### From Source
