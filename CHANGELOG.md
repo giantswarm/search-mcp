@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-01-15
+
+### Added
+
+- Added OAuth authentication support
+
 ### Changed
 
 - Rewritten in Go
@@ -23,5 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version
 
-[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/giantswarm/search-mcp/releases/tag/v0.0.1
