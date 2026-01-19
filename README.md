@@ -143,7 +143,7 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    ```bash
    export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
    export OAUTH_CLIENT_ID=searchmcp
-   export OAUTH_CLIENT_SECRET=<your-secret>
+   # export OAUTH_CLIENT_SECRET=<your-secret>  # Optional - only if client requires a secret
    ```
 
 2. **Run in HTTP mode**:
@@ -162,7 +162,7 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    ```bash
    export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
    export OAUTH_CLIENT_ID=searchmcp
-   export OAUTH_CLIENT_SECRET=<your-secret>
+   # export OAUTH_CLIENT_SECRET=<your-secret>  # Optional - only if client requires a secret
    ```
 
 2. **Run in stdio mode** (default):

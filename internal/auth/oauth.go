@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strings"
 
 	"golang.org/x/oauth2"
 )
@@ -35,14 +36,16 @@ func NewManager(config Config, logger *slog.Logger) (AuthManager, error) {
 	}
 
 	// Create OAuth config
+	// Trim trailing slash from issuer URL to avoid double slashes in endpoints
+	issuerURL := strings.TrimSuffix(config.IssuerURL, "/")
 	oauthConfig := &oauth2.Config{
 		ClientID:     config.ClientID,
 		ClientSecret: config.ClientSecret,
 		RedirectURL:  config.RedirectURI,
 		Scopes:       config.Scopes,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:   config.IssuerURL + "/auth",
-			TokenURL:  config.IssuerURL + "/token",
+			AuthURL:   issuerURL + "/auth",
+			TokenURL:  issuerURL + "/token",
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
@@ -217,7 +220,7 @@ func (m *Manager) formatError(err error) error {
 		return fmt.Errorf(
 			"not authenticated: no valid session found\n"+
 				"Please authenticate by visiting: %s/oauth/login\n"+
-				"Or ensure environment variables are set: OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET",
+				"Or ensure environment variables are set: OAUTH_ISSUER_URL, OAUTH_CLIENT_ID (and optionally OAUTH_CLIENT_SECRET)",
 			m.config.ServerAddr,
 		)
 
@@ -249,10 +252,6 @@ func validateConfig(config Config) error {
 
 	if config.ClientID == "" {
 		return fmt.Errorf("client ID is required")
-	}
-
-	if config.ClientSecret == "" {
-		return fmt.Errorf("client secret is required")
 	}
 
 	if len(config.Scopes) == 0 {

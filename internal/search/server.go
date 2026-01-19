@@ -72,7 +72,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 	}
 
 	// Only create auth manager if configuration is provided
-	if authConfig.IssuerURL != "" && authConfig.ClientID != "" && authConfig.ClientSecret != "" {
+	if authConfig.IssuerURL != "" && authConfig.ClientID != "" {
 		var err error
 		authMgr, err = auth.NewManager(authConfig, logger)
 		if err != nil {
@@ -83,7 +83,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 		}
 	} else {
 		logger.Info("authentication not configured",
-			"note", "Set OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, and OAUTH_CLIENT_SECRET to enable intranet access")
+			"note", "Set OAUTH_ISSUER_URL and OAUTH_CLIENT_ID (OAUTH_CLIENT_SECRET is optional) to enable intranet access")
 	}
 
 	// Register tools

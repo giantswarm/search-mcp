@@ -175,10 +175,10 @@ This specification defines the implementation of OAuth 2.1-based authentication 
 |----------|-------------|----------|---------|---------|
 | `OAUTH_ISSUER_URL` | Dex OAuth issuer URL | Yes* | - | `https://dex.operations.awsprod.gigantic.io` |
 | `OAUTH_CLIENT_ID` | OAuth client identifier | Yes* | - | `searchmcp` |
-| `OAUTH_CLIENT_SECRET` | OAuth client secret | Yes* | - | `dummysecret` |
+| `OAUTH_CLIENT_SECRET` | OAuth client secret | No | - | `dummysecret` |
 | `OAUTH_REDIRECT_URI` | OAuth callback URL (optional) | No | Auto-generated | `http://localhost:8080/oauth/callback` |
 
-\* Required only when using intranet tools. Server starts without these but fails gracefully on intranet tool usage.
+\* Required only when using intranet tools. Server starts without these but fails gracefully on intranet tool usage. `OAUTH_CLIENT_SECRET` is optional and only needed if the OAuth client is configured with a secret.
 
 ### 3.2 Dex Configuration
 
@@ -330,7 +330,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager) serve
         if !authMgr.IsAuthenticated() {
             return mcp.NewToolResultError(
                 "Authentication required. This tool accesses Giant Swarm intranet which requires authentication.\n" +
-                "Please ensure OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, and OAUTH_CLIENT_SECRET are configured.\n" +
+                "Please ensure OAUTH_ISSUER_URL and OAUTH_CLIENT_ID are configured (OAUTH_CLIENT_SECRET is optional).\n" +
                 "Run with --transport=streamable-http to enable authentication.",
             ), nil
         }
@@ -646,7 +646,7 @@ func (m *Manager) GetToken(ctx context.Context) (string, error) {
             return "", fmt.Errorf(
                 "not authenticated: no valid session found\n" +
                 "Please authenticate by visiting: %s/oauth/login\n" +
-                "Or ensure environment variables are set: OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET",
+                "Or ensure environment variables are set: OAUTH_ISSUER_URL, OAUTH_CLIENT_ID (OAUTH_CLIENT_SECRET is optional)",
                 m.config.ServerAddr,
             )
 
@@ -823,7 +823,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, trans
                 return mcp.NewToolResultError(
                     "❌ Authentication not configured\n\n" +
                     "Please configure environment variables:\n" +
-                    "  OAUTH_ISSUER_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET",
+                    "  OAUTH_ISSUER_URL, OAUTH_CLIENT_ID (OAUTH_CLIENT_SECRET is optional)",
                 ), nil
             }
 
@@ -1020,7 +1020,7 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    ```bash
    export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
    export OAUTH_CLIENT_ID=searchmcp
-   export OAUTH_CLIENT_SECRET=dummysecret
+   # export OAUTH_CLIENT_SECRET=<secret>  # Optional - only if client requires a secret
    ```
 
 2. **Run in HTTP mode** (authentication requires HTTP transport):
@@ -1083,14 +1083,14 @@ The server uses OAuth 2.1 with PKCE to authenticate users against Giant Swarm's 
 |----------|-------------|----------|---------|
 | `OAUTH_ISSUER_URL` | Dex OAuth issuer URL | Yes | `https://dex.operations.awsprod.gigantic.io` |
 | `OAUTH_CLIENT_ID` | OAuth client identifier | Yes | `searchmcp` |
-| `OAUTH_CLIENT_SECRET` | OAuth client secret | Yes | `dummysecret` |
+| `OAUTH_CLIENT_SECRET` | OAuth client secret | No | - |
 
 ### Example Configuration
 
 ```bash
 export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
 export OAUTH_CLIENT_ID=searchmcp
-export OAUTH_CLIENT_SECRET=dummysecret
+# export OAUTH_CLIENT_SECRET=<secret>  # Optional - only if client requires a secret
 
 search-mcp serve --transport=streamable-http --http-addr=:8080
 ```
@@ -1195,7 +1195,7 @@ ls -l ~/.config/giantswarm/tokens.enc
 
 ### Best Practices
 
-1. **Protect your client secret**: Don't commit `OAUTH_CLIENT_SECRET` to git
+1. **Protect your client secret**: If using `OAUTH_CLIENT_SECRET`, don't commit it to git
 2. **Use environment variables**: Don't hardcode credentials
 3. **Secure your machine**: Token encryption relies on machine security
 4. **Regular token rotation**: Re-authenticate periodically
@@ -1268,15 +1268,15 @@ Add to `docs/authentication.md` or create separate file:
 - **Required**: Yes (for intranet tools)
 - **Default**: None
 
+### Optional
+
 #### OAUTH_CLIENT_SECRET
-- **Description**: OAuth client secret for authentication
+- **Description**: OAuth client secret for authentication (only needed if the OAuth client is configured with a secret)
 - **Format**: String (sensitive)
 - **Example**: `dummysecret`
-- **Required**: Yes (for intranet tools)
-- **Default**: None
-- **Security**: Keep this secret! Do not commit to version control
-
-### Optional
+- **Required**: No
+- **Default**: None (empty string)
+- **Security**: If used, keep this secret! Do not commit to version control
 
 #### OAUTH_REDIRECT_URI
 - **Description**: OAuth callback URL (usually auto-generated)
