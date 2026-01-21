@@ -37,7 +37,7 @@ Set the required OAuth environment variables:
 ```bash
 export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
 export OAUTH_CLIENT_ID=searchmcp
-export OAUTH_CLIENT_SECRET=<your-secret>
+export OAUTH_CLIENT_SECRET=<your-secret>  # Optional - only needed if client has a secret
 ```
 
 ### 2. Start Server
@@ -73,7 +73,7 @@ Set the required OAuth environment variables:
 ```bash
 export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
 export OAUTH_CLIENT_ID=searchmcp
-export OAUTH_CLIENT_SECRET=<your-secret>
+export OAUTH_CLIENT_SECRET=<your-secret>  # Optional - only needed if client has a secret
 ```
 
 ### 2. Start Server
@@ -191,7 +191,7 @@ Tokens are automatically refreshed when they approach expiration:
 ```bash
 export OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
 export OAUTH_CLIENT_ID=searchmcp
-export OAUTH_CLIENT_SECRET=<your-secret>
+export OAUTH_CLIENT_SECRET=<your-secret>  # Optional - only needed if client has a secret
 ```
 
 ### Not Authenticated
@@ -260,7 +260,7 @@ del %APPDATA%\giantswarm\tokens.enc
 
 ### Best Practices
 
-1. **Never commit OAuth secrets**: Keep `OAUTH_CLIENT_SECRET` out of version control
+1. **Never commit OAuth secrets**: If using `OAUTH_CLIENT_SECRET`, keep it out of version control
 2. **Use environment variables**: Don't hardcode credentials
 3. **Protect token storage**: Don't share your tokens.enc file
 4. **Regular token rotation**: Tokens automatically refresh, but re-authenticate periodically

@@ -161,7 +161,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, trans
 						"Please configure the following environment variables:\n" +
 						"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
 						"  OAUTH_CLIENT_ID=searchmcp\n" +
-						"  OAUTH_CLIENT_SECRET=<your-secret>\n\n" +
+						"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
 						"Then restart the server.",
 				), nil
 			}
@@ -205,7 +205,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, trans
 					"Please configure the following environment variables:\n" +
 					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
 					"  OAUTH_CLIENT_ID=searchmcp\n" +
-					"  OAUTH_CLIENT_SECRET=<your-secret>\n\n" +
+					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
 					"Then restart the server and authenticate by visiting:\n" +
 					"  http://localhost:8080/oauth/login",
 			), nil
