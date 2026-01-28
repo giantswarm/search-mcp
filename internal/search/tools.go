@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	itemsPerPageDefault   = 10
-	logMaxStringLength    = 100
-	logMaxArrayElements   = 5
+	itemsPerPageDefault = 10
+	logMaxStringLength  = 100
+	logMaxArrayElements = 5
 )
 
 // sanitizeForLog truncates long strings and limits array sizes to prevent log bloat
