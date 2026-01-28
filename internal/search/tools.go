@@ -3,27 +3,66 @@ package search
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/giantswarm/search-mcp/internal/auth"
+	"github.com/giantswarm/search-mcp/internal/metrics"
 )
 
 const (
-	itemsPerPageDefault = 10
+	itemsPerPageDefault   = 10
+	logMaxStringLength    = 100
+	logMaxArrayElements   = 5
 )
 
-// Tools that require authentication
-var authRequiredTools = map[string]bool{
-	"read_intranet_url": true,
-	"search_runbook":    true,
-	"search_ops_recipe": true,
+// sanitizeForLog truncates long strings and limits array sizes to prevent log bloat
+func sanitizeForLog(args map[string]any) map[string]any {
+	result := make(map[string]any, len(args))
+	for k, v := range args {
+		result[k] = sanitizeValue(v)
+	}
+	return result
+}
+
+func sanitizeValue(v any) any {
+	switch val := v.(type) {
+	case string:
+		if len(val) > logMaxStringLength {
+			return val[:logMaxStringLength] + "...(truncated)"
+		}
+		return val
+	case []any:
+		if len(val) > logMaxArrayElements {
+			truncated := make([]any, logMaxArrayElements)
+			for i := 0; i < logMaxArrayElements; i++ {
+				truncated[i] = sanitizeValue(val[i])
+			}
+			return append(truncated, fmt.Sprintf("...(%d more)", len(val)-logMaxArrayElements))
+		}
+		sanitized := make([]any, len(val))
+		for i, item := range val {
+			sanitized[i] = sanitizeValue(item)
+		}
+		return sanitized
+	default:
+		return v
+	}
 }
 
 // RegisterTools registers all search tools with the MCP server
-func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, transport string) {
+func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, transport string, logger *slog.Logger, metricsCollector metrics.Collector) {
+	// withLogging wraps a handler to log tool invocations and record metrics
+	withLogging := func(name string, handler server.ToolHandlerFunc) server.ToolHandlerFunc {
+		return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			logger.Info("tool invoked", "tool", name, "params", sanitizeForLog(request.GetArguments()))
+			metricsCollector.RecordToolCall(name)
+			return handler(ctx, request)
+		}
+	}
 	// Register search tool
 	s.AddTool(mcp.Tool{
 		Name:        "search",
@@ -61,7 +100,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"term"},
 		},
-	}, searchHandler(client))
+	}, withLogging("search", searchHandler(client)))
 
 	// Register search_docs tool
 	s.AddTool(mcp.Tool{
@@ -87,7 +126,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"term"},
 		},
-	}, searchDocsHandler(client))
+	}, withLogging("search_docs", searchDocsHandler(client)))
 
 	// Register search_runbook tool
 	s.AddTool(mcp.Tool{
@@ -113,7 +152,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"term"},
 		},
-	}, requireAuth(searchRunbookHandler(client), authMgr, transport))
+	}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, transport)))
 
 	// Register search_ops_recipe tool
 	s.AddTool(mcp.Tool{
@@ -139,7 +178,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"term"},
 		},
-	}, requireAuth(searchOpsRecipeHandler(client), authMgr, transport))
+	}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, transport)))
 
 	// Register read_docs_url tool
 	s.AddTool(mcp.Tool{
@@ -155,7 +194,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"url"},
 		},
-	}, readDocsURLHandler(client))
+	}, withLogging("read_docs_url", readDocsURLHandler(client)))
 
 	// Register read_docs_index tool
 	s.AddTool(mcp.Tool{
@@ -166,7 +205,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{},
 			Required:   []string{},
 		},
-	}, readDocsIndexHandler(client))
+	}, withLogging("read_docs_index", readDocsIndexHandler(client)))
 
 	// Register read_handbook_url tool
 	s.AddTool(mcp.Tool{
@@ -182,7 +221,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"url"},
 		},
-	}, readHandbookURLHandler(client))
+	}, withLogging("read_handbook_url", readHandbookURLHandler(client)))
 
 	// Register read_intranet_url tool
 	s.AddTool(mcp.Tool{
@@ -198,7 +237,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			Required: []string{"url"},
 		},
-	}, requireAuth(readIntranetURLHandler(client), authMgr, transport))
+	}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, transport)))
 }
 
 // requireAuth wraps a handler to require authentication

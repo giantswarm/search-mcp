@@ -46,8 +46,6 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 		return nil, fmt.Errorf("failed to marshal query: %w", err)
 	}
 
-	c.logger.Debug("search query", "payload", string(payload))
-
 	// Determine endpoint based on auth token presence
 	endpoint := publicSearchEndpoint
 	var authToken string
