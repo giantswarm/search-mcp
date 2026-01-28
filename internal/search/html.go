@@ -41,6 +41,28 @@ func ConvertHTMLToMarkdown(htmlContent, sourceURL string) (string, error) {
 	return result, nil
 }
 
+// ExtractSelector extracts HTML content matching a CSS selector.
+// Returns the original content if the selector is not found.
+func ExtractSelector(htmlContent, selector string) (string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	selection := doc.Find(selector)
+	if selection.Length() == 0 {
+		// Selector not found, return original content
+		return htmlContent, nil
+	}
+
+	html, err := selection.Html()
+	if err != nil {
+		return "", fmt.Errorf("failed to extract HTML from selector: %w", err)
+	}
+
+	return html, nil
+}
+
 // cleanupWhitespace removes excessive blank lines from text
 func cleanupWhitespace(text string) string {
 	lines := strings.Split(text, "\n")

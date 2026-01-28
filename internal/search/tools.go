@@ -33,7 +33,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required)",
+					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -62,6 +62,32 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Required: []string{"term"},
 		},
 	}, searchHandler(client))
+
+	// Register search_docs tool
+	s.AddTool(mcp.Tool{
+		Name:        "search_docs",
+		Description: "Search public documentation. To paginate through results, use a non-zero start_index.",
+		InputSchema: mcp.ToolInputSchema{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"term": map[string]interface{}{
+					"type":        "string",
+					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
+				},
+				"start_index": map[string]interface{}{
+					"type":        "integer",
+					"description": "The start index of the search results (optional, defaults to 0)",
+					"default":     0,
+				},
+				"size": map[string]interface{}{
+					"type":        "integer",
+					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+					"default":     itemsPerPageDefault,
+				},
+			},
+			Required: []string{"term"},
+		},
+	}, searchDocsHandler(client))
 
 	// Register search_runbook tool
 	s.AddTool(mcp.Tool{
@@ -115,10 +141,37 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 		},
 	}, requireAuth(searchOpsRecipeHandler(client), authMgr, transport))
 
+	// Register read_docs_url tool
+	s.AddTool(mcp.Tool{
+		Name:        "read_docs_url",
+		Description: "Returns content from a single URL of the Giant Swarm documentation website docs.giantswarm.io (public, no authentication required), in Markdown format.",
+		InputSchema: mcp.ToolInputSchema{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"url": map[string]interface{}{
+					"type":        "string",
+					"description": "The URL to fetch content from, e.g. https://docs.giantswarm.io/some-page/",
+				},
+			},
+			Required: []string{"url"},
+		},
+	}, readDocsURLHandler(client))
+
+	// Register read_docs_index tool
+	s.AddTool(mcp.Tool{
+		Name:        "read_docs_index",
+		Description: "Returns an index of all documentation pages with title, description, and link, in Markdown format.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:       "object",
+			Properties: map[string]interface{}{},
+			Required:   []string{},
+		},
+	}, readDocsIndexHandler(client))
+
 	// Register read_handbook_url tool
 	s.AddTool(mcp.Tool{
 		Name:        "read_handbook_url",
-		Description: "Read content from a single URL on the Giant Swarm handbook (public, no authentication required).",
+		Description: "Returns content from a single URL on the Giant Swarm handbook (public, no authentication required), in Markdown format.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -134,7 +187,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	// Register read_intranet_url tool
 	s.AddTool(mcp.Tool{
 		Name:        "read_intranet_url",
-		Description: "Read content from a single URL on the Giant Swarm intranet. Requires authentication.",
+		Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -274,6 +327,38 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 	}
 }
 
+// searchDocsHandler handles the search tool
+func searchDocsHandler(client *Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Parse arguments
+		term := request.GetString("term", "")
+		if term == "" {
+			return mcp.NewToolResultError("term parameter is required"), nil
+		}
+
+		startIndex := request.GetInt("start_index", 0)
+		size := request.GetInt("size", itemsPerPageDefault)
+
+		// Perform search
+		searchReq := SearchRequest{
+			Term:       term,
+			StartIndex: startIndex,
+			Size:       size,
+			TypeFilter: "Documentation",
+		}
+
+		resp, err := client.Search(ctx, searchReq)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Search failed: %v", err)), nil
+		}
+
+		// Format results
+		result := FormatSearchResults(term, startIndex, resp)
+
+		return mcp.NewToolResultText(result), nil
+	}
+}
+
 // searchRunbookHandler handles the search_runbook tool
 func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -335,6 +420,56 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 		result := FormatSearchResults(term, startIndex, resp)
 
 		return mcp.NewToolResultText(result), nil
+	}
+}
+
+// readDocsURLHandler handles the read_docs_url tool
+func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Parse arguments
+		url := request.GetString("url", "")
+		if url == "" {
+			return mcp.NewToolResultError("url parameter is required"), nil
+		}
+
+		// Validate URL is from handbook
+		if !strings.HasPrefix(url, "https://docs.giantswarm.io/") {
+			return mcp.NewToolResultError("❌ URL must be from the Giant Swarm handbook (https://docs.giantswarm.io/)."), nil
+		}
+
+		// Fetch content
+		htmlContent, err := client.FetchURL(ctx, url)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error accessing %s: %v", url, err)), nil
+		}
+
+		// Pick only relevant content from selector '#main .container .content'
+		htmlContent, err = ExtractSelector(htmlContent, "#main .container .content")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error extracting content: %v", err)), nil
+		}
+
+		// Convert to Markdown
+		markdown, err := ConvertHTMLToMarkdown(htmlContent, url)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error converting content: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(markdown), nil
+	}
+}
+
+// readDocsIndexHandler handles the read_docs_url tool
+func readDocsIndexHandler(client *Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Fetch content
+		url := "https://docs.giantswarm.io/llms.txt"
+		content, err := client.FetchURL(ctx, url)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error accessing %s: %v", url, err)), nil
+		}
+
+		return mcp.NewToolResultText(content), nil
 	}
 }
 

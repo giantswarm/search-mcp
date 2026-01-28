@@ -184,8 +184,11 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
 ### What Requires Authentication?
 
 - ✅ **Public tools** (no auth required):
-  - `search` - Search public documentation
+  - `read_docs_index` - Get index of public documentation pages
+  - `read_docs_url` - Read public documentation pages
   - `read_handbook_url` - Read public handbook pages
+  - `search_docs` - Search public documentation
+  - `search` - Search public documentation
 
 - 🔒 **Intranet tools** (authentication required):
   - `read_intranet_url` - Read intranet pages
