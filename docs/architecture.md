@@ -30,6 +30,10 @@ search-mcp/
 │   ├── client.go     # HTTP client for search API
 │   ├── html.go       # HTML to Markdown conversion
 │   └── types.go      # Data structures
+├── internal/metrics/ # Prometheus metrics
+│   ├── collector.go  # Collector interface
+│   ├── prometheus.go # Prometheus implementation
+│   └── noop.go       # No-op implementation (stdio mode)
 ```
 
 #### Key Packages
@@ -75,7 +79,19 @@ The server supports two MCP transports:
   - Configurable endpoint path (default: `/mcp`)
   - Graceful shutdown support
 
-### 6. Error Handling
+### 6. Metrics (HTTP mode only)
+
+The server exposes Prometheus metrics at `/metrics` when running in HTTP mode:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `searchmcp_sse_connections_current` | Gauge | Current active SSE connections |
+| `searchmcp_sse_connections_total` | Counter | Total connections since startup |
+| `searchmcp_tool_calls_total{tool="..."}` | Counter | Tool invocations by name |
+
+The metrics package uses an interface-driven design with a no-op implementation for stdio mode.
+
+### 7. Error Handling
 
 The server uses Go's standard error handling patterns:
 
@@ -169,6 +185,7 @@ Return formatted content
 - **MCP Framework**: github.com/mark3labs/mcp-go
 - **HTML Parsing**: github.com/PuerkitoBio/goquery
 - **HTML to Markdown**: github.com/JohannesKaufmann/html-to-markdown/v2
+- **Metrics**: github.com/prometheus/client_golang
 - **Logging**: log/slog (Go standard library)
 - **HTTP Client**: net/http (Go standard library)
 

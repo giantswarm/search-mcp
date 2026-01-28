@@ -13,6 +13,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/giantswarm/search-mcp/internal/auth"
+	"github.com/giantswarm/search-mcp/internal/metrics"
 )
 
 // ServerConfig holds configuration for the MCP server
@@ -30,6 +31,7 @@ type Server struct {
 	authMgr   auth.AuthManager
 	logger    *slog.Logger
 	config    ServerConfig
+	metrics   metrics.Collector
 }
 
 // NewServer creates a new search MCP server
@@ -92,8 +94,17 @@ func NewServer(config ServerConfig) (*Server, error) {
 			"note", "Set OAUTH_ISSUER_URL and OAUTH_CLIENT_ID (OAUTH_CLIENT_SECRET is optional) to enable intranet access")
 	}
 
+	// Initialize metrics collector based on transport
+	var metricsCollector metrics.Collector
+	if config.Transport == "streamable-http" {
+		metricsCollector = metrics.NewPrometheusCollector()
+		logger.Info("metrics enabled", "endpoint", "/metrics")
+	} else {
+		metricsCollector = metrics.NewNoopCollector()
+	}
+
 	// Register tools
-	RegisterTools(mcpServer, searchClient, authMgr, config.Transport)
+	RegisterTools(mcpServer, searchClient, authMgr, config.Transport, logger, metricsCollector)
 
 	logger.Info("MCP server initialized", "name", "giantswarm-search", "tools", 5)
 
@@ -103,6 +114,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 		authMgr:   authMgr,
 		logger:    logger,
 		config:    config,
+		metrics:   metricsCollector,
 	}, nil
 }
 
@@ -170,8 +182,18 @@ func (s *Server) startHTTP(ctx context.Context) error {
 	// Create custom mux that combines MCP endpoints and OAuth routes
 	mux := http.NewServeMux()
 
-	// Register MCP endpoint
-	mux.Handle(s.config.HTTPEndpoint, mcpHTTPServer)
+	// Register MCP endpoint with connection logging and metrics
+	mux.Handle(s.config.HTTPEndpoint, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.logger.Debug("new HTTP streamable connection", "method", r.Method, "remote", r.RemoteAddr)
+		s.metrics.RecordSSEConnection()
+		defer s.metrics.RecordSSEDisconnection()
+		mcpHTTPServer.ServeHTTP(w, r)
+	}))
+
+	// Register metrics endpoint
+	if handler := s.metrics.Handler(); handler != nil {
+		mux.Handle("/metrics", handler)
+	}
 
 	// Add OAuth routes if auth is enabled
 	if s.authMgr != nil {
