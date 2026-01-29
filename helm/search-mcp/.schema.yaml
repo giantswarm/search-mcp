@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://github.com/losisin/helm-values-schema-json/raw/refs/heads/main/config.schema.json
+draft: 2020
+indent: 4
+output: values.schema.json
+values:
+  - values.yaml
+  - ci/unused-values.yaml
+bundle: false
+useHelmDocs: true
+#noAdditionalProperties: true
+noDefaultGlobal: false
+schemaRoot:
+  additionalProperties: false

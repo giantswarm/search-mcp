@@ -14,6 +14,17 @@ workflows:
             tags:
               only: /^v.*/
 
+      - architect/push-to-app-catalog:
+          context: architect
+          name: validate-chart
+          requires:
+            - go-build
+          executor: app-build-suite
+          push_to_appcatalog: false
+          push_to_oci_registry: false # TODO: enable once this works
+          app_catalog_test: dummy
+          app_catalog: dummy
+
       - architect/push-to-registries:
           context: architect
           name: push-to-registries

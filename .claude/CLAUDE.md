@@ -1,4 +1,4 @@
-## Ci/CD checks
+## CI/CD checks
 
 The following check is performed in CorcleCI in the go-build step:
 
@@ -15,3 +15,9 @@ To pass this check, perform the following command after any changes to Go files:
 ```bash
 goimports -local github.com/giantswarm/search-mcp -w .
 ```
+
+# Chart values and Schema
+
+Run `make schema` after changes to `values.yaml` in the chart directory `helm/search-mcp`.
+
+Never modify `values.schema.json` nor `README.md` in the chart directory.

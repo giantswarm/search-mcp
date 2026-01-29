@@ -1,0 +1,6 @@
+# This file defines values that cannot be defined in the default values.yaml
+# because they would conflict with the defaults.
+
+podDisruptionBudget:
+  # -- Maximum number of pods that can be unavailable during a disruption. Cannot be combined with minAvailable.
+  maxUnavailable: 0
