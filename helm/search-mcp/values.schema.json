@@ -3,10 +3,6 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-        "affinity": {
-            "type": "object",
-            "description": "Optional affinity for pod assignment"
-        },
         "fullnameOverride": {
             "type": "string",
             "description": "Optional: overrides the generated application name completely. Cannot be combined with nameOverride."

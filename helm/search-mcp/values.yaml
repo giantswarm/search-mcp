@@ -170,9 +170,6 @@ nodeSelector: {}
 # -- Optional tolerations for pod assignment
 tolerations: []
 
-# -- Optional affinity for pod assignment
-affinity: {}
-
 # -- Pod topology spread constraints
 topologySpreadConstraints:
   - labelSelector:

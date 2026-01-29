@@ -60,9 +60,17 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- if gt (int .Values.replicaCount) 1 }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: {{ include "search-mcp.name" . | quote }}
+                    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+                topologyKey: kubernetes.io/hostname
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:

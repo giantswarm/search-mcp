@@ -65,7 +65,6 @@ MCP server for access to Giant Swarm documentation and more
 | volumeMounts | list | `[]` | Extra volume mounts |
 | nodeSelector | object | `{}` | Optional node selector for pod assignment |
 | tolerations | list | `[]` | Optional tolerations for pod assignment |
-| affinity | object | `{}` | Optional affinity for pod assignment |
 | topologySpreadConstraints | list | `[{"labelSelector":{"matchLabels":{"app.kubernetes.io/instance":"{{ .Release.Name }}","app.kubernetes.io/name":"{{ include \"search-mcp.name\" . }}"}},"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"},{"labelSelector":{"matchLabels":{"app.kubernetes.io/instance":"{{ .Release.Name }}","app.kubernetes.io/name":"{{ include \"search-mcp.name\" . }}"}},"maxSkew":1,"topologyKey":"kubernetes.io/hostname","whenUnsatisfiable":"ScheduleAnyway"}]` | Pod topology spread constraints |
 | podDisruptionBudget | object | `{"enabled":true,"minAvailable":1}` | Settings about PodDisruptionBudget creation |
 | podDisruptionBudget.enabled | bool | `true` | Whether to create a PodDisruptionBudget resource |
