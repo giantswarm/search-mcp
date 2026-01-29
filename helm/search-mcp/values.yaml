@@ -197,7 +197,6 @@ podDisruptionBudget:
   enabled: true
   # -- Number of pods that must be available after a disruption. Cannot be combined with maxUnavailable.
   minAvailable: 1
-  #maxUnavailable: 1
 
 # -- Settings about ServiceMonitor creation for Prometheus Operator
 serviceMonitor:
