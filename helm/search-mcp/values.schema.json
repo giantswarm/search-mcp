@@ -3,6 +3,20 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
+        "env": {
+            "type": "array",
+            "description": "Environment variables for the container Example for OAuth configuration: - name: OAUTH_ISSUER_URL value: \"https://dex.example.com\" - name: OAUTH_CLIENT_ID value: \"searchmcp\"",
+            "items": {
+                "type": "object"
+            }
+        },
+        "envFrom": {
+            "type": "array",
+            "description": "Environment variables from secrets or configmaps Example: - secretRef: name: search-mcp-oauth",
+            "items": {
+                "type": "object"
+            }
+        },
         "fullnameOverride": {
             "type": "string",
             "description": "Optional: overrides the generated application name completely. Cannot be combined with nameOverride."

@@ -165,6 +165,22 @@ volumes: []
 # -- Extra volume mounts
 volumeMounts: []
 
+# @schema type:array; item:object
+# -- Environment variables for the container
+# Example for OAuth configuration:
+#   - name: OAUTH_ISSUER_URL
+#     value: "https://dex.example.com"
+#   - name: OAUTH_CLIENT_ID
+#     value: "searchmcp"
+env: []
+
+# @schema type:array; item:object
+# -- Environment variables from secrets or configmaps
+# Example:
+#   - secretRef:
+#       name: search-mcp-oauth
+envFrom: []
+
 # -- Optional node selector for pod assignment
 nodeSelector: {}
 

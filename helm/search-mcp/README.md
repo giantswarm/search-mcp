@@ -63,6 +63,8 @@ MCP server for access to Giant Swarm documentation and more
 | strategy.rollingUpdate.maxSurge | int | `1` | Maximum number of pods that can be created above the desired number of pods during the update. |
 | volumes | list | `[]` | Extra volumes |
 | volumeMounts | list | `[]` | Extra volume mounts |
+| env | list | `[]` | Environment variables for the container Example for OAuth configuration:   - name: OAUTH_ISSUER_URL     value: "https://dex.example.com"   - name: OAUTH_CLIENT_ID     value: "searchmcp" |
+| envFrom | list | `[]` | Environment variables from secrets or configmaps Example:   - secretRef:       name: search-mcp-oauth |
 | nodeSelector | object | `{}` | Optional node selector for pod assignment |
 | tolerations | list | `[]` | Optional tolerations for pod assignment |
 | topologySpreadConstraints | list | `[{"labelSelector":{"matchLabels":{"app.kubernetes.io/instance":"{{ .Release.Name }}","app.kubernetes.io/name":"{{ include \"search-mcp.name\" . }}"}},"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"},{"labelSelector":{"matchLabels":{"app.kubernetes.io/instance":"{{ .Release.Name }}","app.kubernetes.io/name":"{{ include \"search-mcp.name\" . }}"}},"maxSkew":1,"topologyKey":"kubernetes.io/hostname","whenUnsatisfiable":"ScheduleAnyway"}]` | Pod topology spread constraints |
