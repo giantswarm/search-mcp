@@ -12,9 +12,16 @@ metadata:
     {{- with $route.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with $route.annotations }}
+  {{- $hasExternalDNS := and $route.externalDNS $route.externalDNS.target }}
+  {{- if or $hasExternalDNS $route.annotations }}
   annotations:
+    {{- if $hasExternalDNS }}
+    external-dns.alpha.kubernetes.io/hostname: {{ $route.hostnames | join "," }}
+    external-dns.alpha.kubernetes.io/target: {{ $route.externalDNS.target }}
+    {{- end }}
+    {{- with $route.annotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   {{- with $route.parentRefs }}

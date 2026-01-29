@@ -99,6 +99,11 @@ route:
   # - name: giantswarm-default
   #   namespace: envoy-gateway-system
 
+  # -- External DNS configuration for automatic DNS record creation
+  externalDNS:
+    # -- Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute.
+    target: ""
+
   # -- Request matching rules
   matches:
     - path:

@@ -189,6 +189,16 @@
                     "type": "boolean",
                     "description": "Set to true to enable route creation"
                 },
+                "externalDNS": {
+                    "type": "object",
+                    "description": "External DNS configuration for automatic DNS record creation",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute."
+                        }
+                    }
+                },
                 "filters": {
                     "type": "array"
                 },

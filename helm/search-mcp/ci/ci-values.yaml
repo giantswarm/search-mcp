@@ -1,3 +1,8 @@
 route:
   hostnames:
     - my-host-name
+  parentRefs:
+    - name: giantswarm-default
+      namespace: envoy-gateway-system
+  externalDNS:
+    target: gateway.my-mc.gaws2.gigantic.io

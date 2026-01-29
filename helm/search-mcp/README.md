@@ -33,7 +33,7 @@ MCP server for access to Giant Swarm documentation and more
 | podSecurityContext | object | `{}` | Pod security context |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
 | service | object | `{"annotations":{},"labels":{},"port":80,"type":"ClusterIP"}` | Service settings |
-| route | object | `{"additionalRules":[],"annotations":{},"enabled":true,"filters":[],"hostnames":[],"kind":"HTTPRoute","labels":{},"matches":[{"path":{"type":"PathPrefix","value":"/"}}],"name":"","parentRefs":[],"securityPolicy":{"annotations":{},"enabled":false,"labels":{}}}` | Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/ |
+| route | object | `{"additionalRules":[],"annotations":{},"enabled":true,"externalDNS":{"target":""},"filters":[],"hostnames":[],"kind":"HTTPRoute","labels":{},"matches":[{"path":{"type":"PathPrefix","value":"/"}}],"name":"","parentRefs":[],"securityPolicy":{"annotations":{},"enabled":false,"labels":{}}}` | Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/ |
 | route.enabled | bool | `true` | Set to true to enable route creation |
 | route.kind | string | `"HTTPRoute"` | Kind of route to create. |
 | route.name | string | `""` | Override the route name (defaults to the name of the Helm release) |
@@ -41,6 +41,8 @@ MCP server for access to Giant Swarm documentation and more
 | route.labels | object | `{}` | Optional extra labels for the route |
 | route.hostnames | list | `[]` | Hostnames that the route should match. Supports templating with {{ .Values.xxx }} |
 | route.parentRefs | list | `[]` | Optional parent gateway references |
+| route.externalDNS | object | `{"target":""}` | External DNS configuration for automatic DNS record creation |
+| route.externalDNS.target | string | `""` | Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute. |
 | route.matches | list | `[{"path":{"type":"PathPrefix","value":"/"}}]` | Request matching rules |
 | resources | object | `{"limits":{"cpu":"100m","memory":"256Mi"},"requests":{"cpu":"20m","memory":"32Mi"}}` | Resource requests and limits |
 | resources.requests | object | `{"cpu":"20m","memory":"32Mi"}` | Resource requests |
