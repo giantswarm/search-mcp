@@ -4,7 +4,7 @@ indent: 4
 output: values.schema.json
 values:
   - values.yaml
-  - ci/unused-values.yaml
+  - values_additional.yaml
 bundle: false
 useHelmDocs: true
 #noAdditionalProperties: true
