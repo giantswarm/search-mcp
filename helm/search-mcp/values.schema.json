@@ -160,6 +160,9 @@
         "route": {
             "type": "object",
             "description": "Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/",
+            "required": [
+                "hostnames"
+            ],
             "properties": {
                 "additionalRules": {
                     "type": "array"
@@ -177,7 +180,12 @@
                 },
                 "hostnames": {
                     "type": "array",
-                    "description": "Hostnames that the route should match. Supports templating with {{ .Values.xxx }}"
+                    "description": "Hostnames that the route should match. Supports templating with {{ .Values.xxx }}",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
                 },
                 "kind": {
                     "type": "string",

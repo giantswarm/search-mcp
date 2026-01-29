@@ -88,6 +88,7 @@ route:
   # -- Optional extra labels for the route
   labels: {}
 
+  # @schema required; item:string; uniqueItems; minItems:1
   # -- Hostnames that the route should match. Supports templating with {{ .Values.xxx }}
   hostnames: []
   # - search-mcp.cluster.provider.gigantic.io
