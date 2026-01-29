@@ -22,7 +22,7 @@ workflows:
           executor: app-build-suite
           chart: search-mcp
           push_to_appcatalog: false
-          push_to_oci_registry: false # TODO: enable once this works
+          push_to_oci_registry: true
           app_catalog_test: dummy
           app_catalog: dummy
 
