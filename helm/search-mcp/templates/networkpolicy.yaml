@@ -9,9 +9,24 @@ spec:
     matchLabels:
       {{- include "search-mcp.selectorLabels" . | nindent 6 }}
   policyTypes:
-  - Ingress
-  - Egress
+    - Ingress
+    - Egress
   ingress:
-  - ports:
-    - protocol: TCP
-      port: 8080
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow DNS lookups
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS to anywhere (external APIs, etc.)
+    - ports:
+        - protocol: TCP
+          port: 443
