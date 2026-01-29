@@ -242,7 +242,10 @@
                 },
                 "parentRefs": {
                     "type": "array",
-                    "description": "Optional parent gateway references"
+                    "description": "Optional parent gateway references",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "securityPolicy": {
                     "type": "object",
