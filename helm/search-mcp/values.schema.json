@@ -1,0 +1,437 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "env": {
+            "type": "array",
+            "description": "Environment variables for the container Example for OAuth configuration: - name: OAUTH_ISSUER_URL value: \"https://dex.example.com\" - name: OAUTH_CLIENT_ID value: \"searchmcp\"",
+            "items": {
+                "type": "object"
+            }
+        },
+        "envFrom": {
+            "type": "array",
+            "description": "Environment variables from secrets or configmaps Example: - secretRef: name: search-mcp-oauth",
+            "items": {
+                "type": "object"
+            }
+        },
+        "fullnameOverride": {
+            "type": "string",
+            "description": "Optional: overrides the generated application name completely. Cannot be combined with nameOverride."
+        },
+        "global": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "description": "Global values shared between all subcharts",
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key."
+        },
+        "image": {
+            "type": "object",
+            "description": "Container image settings",
+            "properties": {
+                "pullPolicy": {
+                    "type": "string",
+                    "description": "Image pull policy"
+                },
+                "registry": {
+                    "type": "string",
+                    "description": "Registry host name"
+                },
+                "repository": {
+                    "type": "string",
+                    "description": "Repository name"
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "Optional: overrides the image tag. Default tag is identical with the chart appVersion."
+                }
+            }
+        },
+        "imagePullSecrets": {
+            "type": "array",
+            "description": "Image pull secrets"
+        },
+        "livenessProbe": {
+            "type": "object",
+            "description": "Liveness probe",
+            "properties": {
+                "httpGet": {
+                    "type": "object",
+                    "description": "HTTP GET probe",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to access on the HTTP server"
+                        },
+                        "port": {
+                            "type": "string",
+                            "description": "Port to access on the HTTP server. Can be a named port or a number in string format."
+                        }
+                    }
+                }
+            }
+        },
+        "nameOverride": {
+            "type": "string",
+            "description": "Optional: overrides for the generated application name, but will be suffixed with the release name."
+        },
+        "nodeSelector": {
+            "type": "object",
+            "description": "Optional node selector for pod assignment"
+        },
+        "podAnnotations": {
+            "type": "object",
+            "description": "Pod annotations"
+        },
+        "podDisruptionBudget": {
+            "type": "object",
+            "description": "Settings about PodDisruptionBudget creation",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether to create a PodDisruptionBudget resource"
+                },
+                "maxUnavailable": {
+                    "type": "integer",
+                    "description": "Maximum number of pods that can be unavailable during a disruption. Cannot be combined with minAvailable."
+                },
+                "minAvailable": {
+                    "type": "integer",
+                    "description": "Number of pods that must be available after a disruption. Cannot be combined with maxUnavailable."
+                }
+            }
+        },
+        "podLabels": {
+            "type": "object",
+            "description": "Pod labels"
+        },
+        "podSecurityContext": {
+            "type": "object",
+            "description": "Pod security context"
+        },
+        "readinessProbe": {
+            "type": "object",
+            "description": "Readiness probe",
+            "properties": {
+                "httpGet": {
+                    "type": "object",
+                    "description": "HTTP GET probe",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to access on the HTTP server"
+                        },
+                        "port": {
+                            "type": "string",
+                            "description": "Port to access on the HTTP server. Can be a named port or a number in string format."
+                        }
+                    }
+                }
+            }
+        },
+        "replicaCount": {
+            "type": "integer",
+            "description": "Number of pods to run"
+        },
+        "resources": {
+            "type": "object",
+            "description": "Resource requests and limits",
+            "properties": {
+                "limits": {
+                    "type": "object",
+                    "description": "Resource limits",
+                    "properties": {
+                        "cpu": {
+                            "type": "string",
+                            "description": "CPU limit"
+                        },
+                        "memory": {
+                            "type": "string",
+                            "description": "Memory limit"
+                        }
+                    }
+                },
+                "requests": {
+                    "type": "object",
+                    "description": "Resource requests",
+                    "properties": {
+                        "cpu": {
+                            "type": "string",
+                            "description": "CPU requested"
+                        },
+                        "memory": {
+                            "type": "string",
+                            "description": "Memory requested"
+                        }
+                    }
+                }
+            }
+        },
+        "route": {
+            "type": "object",
+            "description": "Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/",
+            "required": [
+                "hostnames"
+            ],
+            "properties": {
+                "additionalRules": {
+                    "type": "array"
+                },
+                "annotations": {
+                    "type": "object",
+                    "description": "Optional extra annotations for the route"
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Set to true to enable route creation"
+                },
+                "externalDNS": {
+                    "type": "object",
+                    "description": "External DNS configuration for automatic DNS record creation",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute."
+                        }
+                    }
+                },
+                "filters": {
+                    "type": "array"
+                },
+                "hostnames": {
+                    "type": "array",
+                    "description": "Hostnames that the route should match. Supports templating with {{ .Values.xxx }}",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "kind": {
+                    "type": "string",
+                    "description": "Kind of route to create.",
+                    "enum": [
+                        "GRPCRoute",
+                        "HTTPRoute",
+                        "TCPRoute",
+                        "TLSRoute",
+                        "UDPRoute"
+                    ]
+                },
+                "labels": {
+                    "type": "object",
+                    "description": "Optional extra labels for the route"
+                },
+                "matches": {
+                    "type": "array",
+                    "description": "Request matching rules",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "path": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Override the route name (defaults to the name of the Helm release)"
+                },
+                "parentRefs": {
+                    "type": "array",
+                    "description": "Optional parent gateway references",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "securityPolicy": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "labels": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "securityContext": {
+            "type": "object",
+            "description": "Container security context",
+            "properties": {
+                "allowPrivilegeEscalation": {
+                    "type": "boolean"
+                },
+                "capabilities": {
+                    "type": "object",
+                    "properties": {
+                        "drop": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "readOnlyRootFilesystem": {
+                    "type": "boolean"
+                },
+                "runAsNonRoot": {
+                    "type": "boolean"
+                },
+                "runAsUser": {
+                    "type": "integer"
+                },
+                "seccompProfile": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "service": {
+            "type": "object",
+            "description": "Service settings",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "annotations": {
+                    "type": "object"
+                },
+                "labels": {
+                    "type": "object"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "serviceAccount": {
+            "type": "object",
+            "description": "Service account settings",
+            "properties": {
+                "annotations": {
+                    "type": "object",
+                    "description": "Annotations to add to the service account"
+                },
+                "automount": {
+                    "type": "boolean",
+                    "description": "Automatically mount a ServiceAccount's API credentials?"
+                },
+                "create": {
+                    "type": "boolean",
+                    "description": "Specifies whether a service account should be created"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "The name of the service account to use. If not set and create is true, a name is generated using the fullname template"
+                }
+            }
+        },
+        "serviceMonitor": {
+            "type": "object",
+            "description": "Settings about ServiceMonitor creation for Prometheus Operator",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether to create a ServiceMonitor resource"
+                }
+            }
+        },
+        "strategy": {
+            "type": "object",
+            "description": "Deployment strategy",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Recreate",
+                        "RollingUpdate"
+                    ]
+                },
+                "rollingUpdate": {
+                    "type": "object",
+                    "description": "Rolling update settings. Only applicable if type is RollingUpdate.",
+                    "properties": {
+                        "maxSurge": {
+                            "type": "integer",
+                            "description": "Maximum number of pods that can be created above the desired number of pods during the update."
+                        },
+                        "maxUnavailable": {
+                            "type": "integer",
+                            "description": "Maximum number of pods that can be unavailable during the update."
+                        }
+                    }
+                }
+            }
+        },
+        "tolerations": {
+            "type": "array",
+            "description": "Optional tolerations for pod assignment"
+        },
+        "topologySpreadConstraints": {
+            "type": "array",
+            "description": "Pod topology spread constraints",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "labelSelector": {
+                        "type": "object",
+                        "properties": {
+                            "matchLabels": {
+                                "type": "object",
+                                "properties": {
+                                    "app.kubernetes.io/instance": {
+                                        "type": "string"
+                                    },
+                                    "app.kubernetes.io/name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "maxSkew": {
+                        "type": "integer"
+                    },
+                    "topologyKey": {
+                        "type": "string"
+                    },
+                    "whenUnsatisfiable": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "volumeMounts": {
+            "type": "array",
+            "description": "Extra volume mounts"
+        },
+        "volumes": {
+            "type": "array",
+            "description": "Extra volumes"
+        }
+    }
+}

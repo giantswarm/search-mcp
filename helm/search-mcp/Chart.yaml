@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: 0.0.1
+name: search-mcp
+description: MCP server for access to Giant Swarm documentation and more
+home: https://github.com/giantswarm/search-mcp
+icon: https://s.giantswarm.io/app-icons/search-mcp/1/light.svg
+sources:
+- https://github.com/giantswarm/search-mcp
+version: "0.1.0"
+annotations:
+  io.giantswarm.application.audience: giantswarm
+  io.giantswarm.application.managed: "false"
+  io.giantswarm.application.team: honeybadger

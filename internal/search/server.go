@@ -195,6 +195,13 @@ func (s *Server) startHTTP(ctx context.Context) error {
 		mux.Handle("/metrics", handler)
 	}
 
+	// Register health endpoint
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`OK`))
+	})
+
 	// Add OAuth routes if auth is enabled
 	if s.authMgr != nil {
 		s.registerOAuthRoutes(mux)

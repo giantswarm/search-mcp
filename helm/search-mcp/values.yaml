@@ -1,0 +1,224 @@
+# yaml-language-server: $schema=values.schema.json
+
+# Default values for search-mcp.
+# This is a YAML-formatted file.
+#
+# To learn more about how to configure your app on your cluster
+# and override the default values in here, visit:
+#
+#   https://docs.giantswarm.io/tutorials/fleet-management/app-platform/app-configuration/#basic-values-merging-example
+#
+
+# -- Number of pods to run
+replicaCount: 2
+
+# -- Container image settings
+image:
+  # -- Registry host name
+  registry: gsoci.azurecr.io
+  # -- Repository name
+  repository: giantswarm/search-mcp
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Optional: overrides the image tag. Default tag is identical with the chart appVersion.
+  tag: ""
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- Optional: overrides for the generated application name, but will be suffixed with the release name.
+nameOverride: ""
+
+# -- Optional: overrides the generated application name completely. Cannot be combined with nameOverride.
+fullnameOverride: ""
+
+# -- Service account settings
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Automatically mount a ServiceAccount's API credentials?
+  automount: false
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod labels
+podLabels: {}
+
+# -- Pod security context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# -- Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+# -- Service settings
+service:
+  type: ClusterIP
+  port: 80
+  labels: {}
+  annotations: {}
+
+# -- Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/
+route:
+  # -- Set to true to enable route creation
+  enabled: true
+
+  # @schema enum:[GRPCRoute, HTTPRoute, TCPRoute, TLSRoute, UDPRoute]
+  # -- Kind of route to create.
+  kind: HTTPRoute
+  # -- Override the route name (defaults to the name of the Helm release)
+  name: ""
+
+  # -- Optional extra annotations for the route
+  annotations: {}
+  # -- Optional extra labels for the route
+  labels: {}
+
+  # @schema required; item:string; uniqueItems; minItems:1
+  # -- Hostnames that the route should match. Supports templating with {{ .Values.xxx }}
+  hostnames: []
+  # - search-mcp.cluster.provider.gigantic.io
+
+  # @schema type:array; item:object
+  # -- Optional parent gateway references
+  parentRefs: []
+  # - name: giantswarm-default
+  #   namespace: envoy-gateway-system
+
+  # -- External DNS configuration for automatic DNS record creation
+  externalDNS:
+    # -- Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute.
+    target: ""
+
+  # -- Request matching rules
+  matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+  # Filters define the filters that are applied to requests that match this rule
+  filters: []
+
+  # Additional custom rules that can be added to the route
+  # Supports templating
+  additionalRules: []
+
+  # Envoy Gateway SecurityPolicy configuration
+  securityPolicy:
+    enabled: false
+    annotations: {}
+    labels: {}
+
+# -- Resource requests and limits
+resources:
+  # -- Resource requests
+  requests:
+    # -- CPU requested
+    cpu: 20m
+    # -- Memory requested
+    memory: 32Mi
+  # -- Resource limits
+  limits:
+    # -- CPU limit
+    cpu: 100m
+    # -- Memory limit
+    memory: 256Mi
+
+# -- Liveness probe
+livenessProbe:
+  # -- HTTP GET probe
+  httpGet:
+    # -- Path to access on the HTTP server
+    path: /healthz
+    # -- Port to access on the HTTP server. Can be a named port or a number in string format.
+    port: http
+# -- Readiness probe
+readinessProbe:
+  # -- HTTP GET probe
+  httpGet:
+    # -- Path to access on the HTTP server
+    path: /healthz
+    # -- Port to access on the HTTP server. Can be a named port or a number in string format.
+    port: http
+
+# -- Deployment strategy
+strategy:
+  # @schema enum:[Recreate, RollingUpdate]
+  type: RollingUpdate
+  # -- Rolling update settings. Only applicable if type is RollingUpdate.
+  rollingUpdate:
+    # -- Maximum number of pods that can be unavailable during the update.
+    maxUnavailable: 1
+    # -- Maximum number of pods that can be created above the desired number of pods during the update.
+    maxSurge: 1
+
+# -- Extra volumes
+volumes: []
+# -- Extra volume mounts
+volumeMounts: []
+
+# @schema type:array; item:object
+# -- Environment variables for the container
+# Example for OAuth configuration:
+#   - name: OAUTH_ISSUER_URL
+#     value: "https://dex.example.com"
+#   - name: OAUTH_CLIENT_ID
+#     value: "searchmcp"
+env: []
+
+# @schema type:array; item:object
+# -- Environment variables from secrets or configmaps
+# Example:
+#   - secretRef:
+#       name: search-mcp-oauth
+envFrom: []
+
+# -- Optional node selector for pod assignment
+nodeSelector: {}
+
+# -- Optional tolerations for pod assignment
+tolerations: []
+
+# -- Pod topology spread constraints
+topologySpreadConstraints:
+  - labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: '{{ include "search-mcp.name" . }}'
+        app.kubernetes.io/instance: '{{ .Release.Name }}'
+    topologyKey: topology.kubernetes.io/zone
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+  - labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: '{{ include "search-mcp.name" . }}'
+        app.kubernetes.io/instance: '{{ .Release.Name }}'
+    topologyKey: kubernetes.io/hostname
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+
+# -- Settings about PodDisruptionBudget creation
+podDisruptionBudget:
+
+  # -- Whether to create a PodDisruptionBudget resource
+  enabled: true
+  # -- Number of pods that must be available after a disruption. Cannot be combined with maxUnavailable.
+  minAvailable: 1
+
+# -- Settings about ServiceMonitor creation for Prometheus Operator
+serviceMonitor:
+  # -- Whether to create a ServiceMonitor resource
+  enabled: true

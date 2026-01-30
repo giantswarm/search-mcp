@@ -88,3 +88,19 @@ deps: ## Download and tidy dependencies
 .PHONY: verify
 verify: fmt lint test ## Run all verification steps (format, lint, test)
 	@echo "All verification steps passed!"
+
+.PHONY: schema
+schema: ## Generate JSON Schema for chart values
+	@echo "Generating JSON Schema for Helm chart values..."
+	cd helm/search-mcp && helm schema
+	@echo "Normalizing schema..."
+	schemalint normalize ./helm/search-mcp/values.schema.json -o ./helm/search-mcp/values.schema.json --force
+	@echo "Validating schema..."
+	schemalint verify ./helm/search-mcp/values.schema.json
+	@echo "Generating schema documentation..."
+	@which helm-docs > /dev/null 2>&1 || (echo "helm-docs not found. Install from https://github.com/norwoodj/helm-docs" && exit 1)
+	helm-docs \
+		--chart-search-root ./helm/search-mcp \
+		--output-file README.md \
+		--sort-values-order file \
+		--skip-version-footer
