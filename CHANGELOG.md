@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-30
+
 ### Added
 
 - Added tools for public documentation access: `search_docs`, `read_docs_index`, `read_docs_url`.
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version
 
-[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/giantswarm/search-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/giantswarm/search-mcp/releases/tag/v0.0.1
