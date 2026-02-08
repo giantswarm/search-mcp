@@ -8,7 +8,7 @@ require (
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 )
 
 require (
