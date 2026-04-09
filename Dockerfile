@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM gsoci.azurecr.io/giantswarm/golang:1.26.1-alpine3.23 AS builder
+FROM gsoci.azurecr.io/giantswarm/golang:1.26.2-alpine3.23 AS builder
 
 WORKDIR /app
 
