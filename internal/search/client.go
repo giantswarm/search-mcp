@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -293,7 +294,16 @@ func FormatSearchResults(term string, startIndex int, resp *SearchResponse) stri
 
 		// Add excerpt from highlight if available
 		if bodyHighlights, ok := hit.Highlight["body"]; ok && len(bodyHighlights) > 0 {
-			sb.WriteString(fmt.Sprintf("   **Excerpt:** %s\n", bodyHighlights[0]))
+			excerpt := bodyHighlights[0]
+			// Add ellipsis to indicate truncation
+			runes := []rune(excerpt)
+			if len(runes) > 0 && !unicode.IsUpper(runes[0]) {
+				excerpt = "…" + excerpt
+			}
+			if len(runes) > 0 && !strings.ContainsAny(string(runes[len(runes)-1:]), ".!?") {
+				excerpt = excerpt + "…"
+			}
+			sb.WriteString(fmt.Sprintf("   **Excerpt:** %s\n", excerpt))
 		}
 
 		sb.WriteString("\n")
