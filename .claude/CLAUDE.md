@@ -1,3 +1,7 @@
+## Changelog
+
+Almost all Giant Swarm projects use a `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format. Always add an entry under `## [Unreleased]` when making user-facing changes. Use the appropriate subsection: `Added`, `Changed`, `Fixed`, `Removed`, etc.
+
 ## CI/CD checks
 
 The following check is performed in CorcleCI in the go-build step:
