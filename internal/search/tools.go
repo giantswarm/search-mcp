@@ -67,6 +67,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search",
 		Description: "Search public and internal Giant Swarm documentation. To paginate through results, use a non-zero start_index.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -106,6 +110,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_docs",
 		Description: "Search public documentation. To paginate through results, use a non-zero start_index.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -132,6 +140,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_runbook",
 		Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -158,6 +170,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_ops_recipe",
 		Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -184,6 +200,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_docs_url",
 		Description: "Returns content from a single URL of the Giant Swarm documentation website docs.giantswarm.io (public, no authentication required), in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -200,6 +220,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_docs_index",
 		Description: "Returns an index of all documentation pages with title, description, and link, in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type:       "object",
 			Properties: map[string]interface{}{},
@@ -211,6 +235,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_handbook_url",
 		Description: "Returns content from a single URL on the Giant Swarm handbook (public, no authentication required), in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -227,6 +255,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_intranet_url",
 		Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
