@@ -72,7 +72,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -97,6 +97,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					},
 					"default": []interface{}{},
 				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
+				},
 			},
 			Required: []string{"term"},
 		},
@@ -111,7 +116,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -122,6 +127,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"type":        "integer",
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
+				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
 				},
 			},
 			Required: []string{"term"},
@@ -137,7 +147,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required)",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -148,6 +158,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"type":        "integer",
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
+				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
 				},
 			},
 			Required: []string{"term"},
@@ -163,7 +178,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required)",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -174,6 +189,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"type":        "integer",
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
+				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
 				},
 			},
 			Required: []string{"term"},
@@ -344,6 +364,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 		size := request.GetInt("size", itemsPerPageDefault)
 		typeFilter := request.GetString("type_filter", "")
 		breadcrumbFilter := request.GetStringSlice("breadcrumb_filter", []string{})
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search
 		searchReq := SearchRequest{
@@ -352,6 +373,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 			Size:             size,
 			TypeFilter:       typeFilter,
 			BreadcrumbFilter: breadcrumbFilter,
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -377,13 +399,15 @@ func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search
 		searchReq := SearchRequest{
-			Term:       term,
-			StartIndex: startIndex,
-			Size:       size,
-			TypeFilter: "Documentation",
+			Term:            term,
+			StartIndex:      startIndex,
+			Size:            size,
+			TypeFilter:      "Documentation",
+			RequireAllTerms: requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -409,6 +433,7 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search with runbook breadcrumb filter
 		searchReq := SearchRequest{
@@ -416,6 +441,7 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 			StartIndex:       startIndex,
 			Size:             size,
 			BreadcrumbFilter: []string{"support-and-ops", "runbooks"},
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -441,6 +467,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search with ops-recipes breadcrumb filter
 		searchReq := SearchRequest{
@@ -448,6 +475,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 			StartIndex:       startIndex,
 			Size:             size,
 			BreadcrumbFilter: []string{"support-and-ops", "ops-recipes"},
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)

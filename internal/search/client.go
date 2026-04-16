@@ -162,16 +162,36 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 
 // buildQuery constructs an Elasticsearch/OpenSearch query from a SearchRequest
 func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
-	// Base query with function_score
+	// Build the inner query based on matching mode
+	var innerQuery map[string]interface{}
+	if req.RequireAllTerms {
+		// Strict AND mode: all search terms must be present
+		innerQuery = map[string]interface{}{
+			"simple_query_string": map[string]interface{}{
+				"fields":           []string{"title^5", "body", "text"},
+				"default_operator": "AND",
+				"query":            req.Term,
+			},
+		}
+	} else {
+		// Default similarity mode: documents are ranked by how well they
+		// match the search terms, without requiring all terms to be present.
+		innerQuery = map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":                req.Term,
+				"fields":               []string{"title^5", "body", "text"},
+				"type":                 "best_fields",
+				"operator":             "or",
+				"minimum_should_match": "30%",
+				"tie_breaker":          0.3,
+			},
+		}
+	}
+
+	// Wrap in function_score for type/breadcrumb boosting
 	baseQuery := map[string]interface{}{
 		"function_score": map[string]interface{}{
-			"query": map[string]interface{}{
-				"simple_query_string": map[string]interface{}{
-					"fields":           []string{"title^5", "uri^5", "description^5", "text"},
-					"default_operator": "AND",
-					"query":            req.Term,
-				},
-			},
+			"query": innerQuery,
 			"functions": []map[string]interface{}{
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Intranet"}}, "weight": 10},
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Blog"}}, "weight": 0.01},
