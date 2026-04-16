@@ -246,6 +246,8 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		},
 		Query: finalQuery,
 		Highlight: map[string]interface{}{
+			"pre_tags":  []string{"**"},
+			"post_tags": []string{"**"},
 			"fields": map[string]interface{}{
 				"body": map[string]interface{}{
 					"type":                "unified",
