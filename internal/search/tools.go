@@ -483,7 +483,7 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 		}
 
 		// Pick only relevant content from selector '#main .container .content'
-		htmlContent, err = ExtractSelector(htmlContent, "#main .container .content")
+		htmlContent, err = ExtractSelector(htmlContent, ".base-content, .list-content")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error extracting content: %v", err)), nil
 		}
