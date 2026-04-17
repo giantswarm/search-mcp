@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added MCP tool annotations (`readOnlyHint`, `openWorldHint`) to all tools.
 
+### Changed
+
+- All search tools no longer use boolean `AND` query logic. The old behaviour can be activated setting the `require_all_terms` parameter to true.
+
 ### Fixed
 
 - `read_docs_url`: strip site navigation and footer from returned content by matching the actual Hugo template classes (`.base-content` for single pages, `.list-content` for index pages). The previous selector matched neither template, causing chrome to leak into responses.
