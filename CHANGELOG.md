@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-17
+
 ### Added
 
 - Added MCP tool annotations (`readOnlyHint`, `openWorldHint`) to all tools.
+
+### Changed
+
+- All search tools no longer use boolean `AND` query logic. The old behaviour can be activated setting the `require_all_terms` parameter to true.
 
 ### Fixed
 
@@ -46,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version
 
-[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/giantswarm/search-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/giantswarm/search-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/giantswarm/search-mcp/releases/tag/v0.0.1
