@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added MCP tool annotations (`readOnlyHint`, `openWorldHint`) to all tools.
+
 ### Fixed
 
 - `read_docs_url`: strip site navigation and footer from returned content by matching the actual Hugo template classes (`.base-content` for single pages, `.list-content` for index pages). The previous selector matched neither template, causing chrome to leak into responses.
