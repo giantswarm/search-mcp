@@ -9,6 +9,7 @@ type SearchRequest struct {
 	Size             int
 	TypeFilter       string
 	BreadcrumbFilter []string
+	RequireAllTerms  bool
 }
 
 // SearchResponse represents the response from Elasticsearch/OpenSearch

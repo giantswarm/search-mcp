@@ -48,8 +48,11 @@ search-mcp/
 
 The search functionality is powered by OpenSearch v3.2:
 
-- Uses OpenSearch query DSL (Elasticsearch-compatible) with `function_score` and `simple_query_string`
-- Field weights: `title^5`, `uri^5`, `description^5`, `text`
+- Uses OpenSearch query DSL (Elasticsearch-compatible) with `function_score`
+- Two query modes, controlled by the `require_all_terms` parameter:
+  - **Default (similarity mode):** Uses `multi_match` with `best_fields`, `operator: "or"`, and `minimum_should_match: "30%"`. Documents are ranked by relevance without requiring all terms to match. Best for longer, multi-term queries from AI agents.
+  - **Strict AND mode (`require_all_terms: true`):** Uses `simple_query_string` with `default_operator: "AND"`. All search terms must be present in matching documents.
+- Field weights: `title^5`, `body`, `text`
 - Supports filters by type (e.g., "Blog", "Docs")
 - Supports breadcrumb filtering for specific sections
 - Implements scoring boosts for different content types

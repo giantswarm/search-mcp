@@ -67,12 +67,16 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search",
 		Description: "Search public and internal Giant Swarm documentation. To paginate through results, use a non-zero start_index.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -97,6 +101,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					},
 					"default": []interface{}{},
 				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
+				},
 			},
 			Required: []string{"term"},
 		},
@@ -106,12 +115,16 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_docs",
 		Description: "Search public documentation. To paginate through results, use a non-zero start_index.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required). If the search term contains multiple words, only pages containing all words will be returned (AND logic).",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -122,6 +135,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"type":        "integer",
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
+				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
 				},
 			},
 			Required: []string{"term"},
@@ -132,12 +150,16 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_runbook",
 		Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required)",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -148,6 +170,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"type":        "integer",
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
+				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
 				},
 			},
 			Required: []string{"term"},
@@ -158,12 +185,16 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "search_ops_recipe",
 		Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
 				"term": map[string]interface{}{
 					"type":        "string",
-					"description": "The search term (required)",
+					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
 				},
 				"start_index": map[string]interface{}{
 					"type":        "integer",
@@ -175,6 +206,11 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
 					"default":     itemsPerPageDefault,
 				},
+				"require_all_terms": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
+					"default":     false,
+				},
 			},
 			Required: []string{"term"},
 		},
@@ -184,6 +220,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_docs_url",
 		Description: "Returns content from a single URL of the Giant Swarm documentation website docs.giantswarm.io (public, no authentication required), in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -200,6 +240,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_docs_index",
 		Description: "Returns an index of all documentation pages with title, description, and link, in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type:       "object",
 			Properties: map[string]interface{}{},
@@ -211,6 +255,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_handbook_url",
 		Description: "Returns content from a single URL on the Giant Swarm handbook (public, no authentication required), in Markdown format.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -227,6 +275,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	s.AddTool(mcp.Tool{
 		Name:        "read_intranet_url",
 		Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
+		Annotations: mcp.ToolAnnotation{
+			ReadOnlyHint:  mcp.ToBoolPtr(true),
+			OpenWorldHint: mcp.ToBoolPtr(false),
+		},
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -344,6 +396,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 		size := request.GetInt("size", itemsPerPageDefault)
 		typeFilter := request.GetString("type_filter", "")
 		breadcrumbFilter := request.GetStringSlice("breadcrumb_filter", []string{})
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search
 		searchReq := SearchRequest{
@@ -352,6 +405,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 			Size:             size,
 			TypeFilter:       typeFilter,
 			BreadcrumbFilter: breadcrumbFilter,
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -377,13 +431,15 @@ func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search
 		searchReq := SearchRequest{
-			Term:       term,
-			StartIndex: startIndex,
-			Size:       size,
-			TypeFilter: "Documentation",
+			Term:            term,
+			StartIndex:      startIndex,
+			Size:            size,
+			TypeFilter:      "Documentation",
+			RequireAllTerms: requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -409,6 +465,7 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search with runbook breadcrumb filter
 		searchReq := SearchRequest{
@@ -416,6 +473,7 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 			StartIndex:       startIndex,
 			Size:             size,
 			BreadcrumbFilter: []string{"support-and-ops", "runbooks"},
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -441,6 +499,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 
 		startIndex := request.GetInt("start_index", 0)
 		size := request.GetInt("size", itemsPerPageDefault)
+		requireAllTerms := request.GetBool("require_all_terms", false)
 
 		// Perform search with ops-recipes breadcrumb filter
 		searchReq := SearchRequest{
@@ -448,6 +507,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 			StartIndex:       startIndex,
 			Size:             size,
 			BreadcrumbFilter: []string{"support-and-ops", "ops-recipes"},
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -483,7 +543,7 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 		}
 
 		// Pick only relevant content from selector '#main .container .content'
-		htmlContent, err = ExtractSelector(htmlContent, "#main .container .content")
+		htmlContent, err = ExtractSelector(htmlContent, ".base-content, .list-content")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error extracting content: %v", err)), nil
 		}
