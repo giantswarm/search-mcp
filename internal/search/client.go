@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -162,16 +163,36 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 
 // buildQuery constructs an Elasticsearch/OpenSearch query from a SearchRequest
 func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
-	// Base query with function_score
+	// Build the inner query based on matching mode
+	var innerQuery map[string]interface{}
+	if req.RequireAllTerms {
+		// Strict AND mode: all search terms must be present
+		innerQuery = map[string]interface{}{
+			"simple_query_string": map[string]interface{}{
+				"fields":           []string{"title^5", "body", "text"},
+				"default_operator": "AND",
+				"query":            req.Term,
+			},
+		}
+	} else {
+		// Default similarity mode: documents are ranked by how well they
+		// match the search terms, without requiring all terms to be present.
+		innerQuery = map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":                req.Term,
+				"fields":               []string{"title^5", "body", "text"},
+				"type":                 "best_fields",
+				"operator":             "or",
+				"minimum_should_match": "30%",
+				"tie_breaker":          0.3,
+			},
+		}
+	}
+
+	// Wrap in function_score for type/breadcrumb boosting
 	baseQuery := map[string]interface{}{
 		"function_score": map[string]interface{}{
-			"query": map[string]interface{}{
-				"simple_query_string": map[string]interface{}{
-					"fields":           []string{"title^5", "uri^5", "description^5", "text"},
-					"default_operator": "AND",
-					"query":            req.Term,
-				},
-			},
+			"query": innerQuery,
 			"functions": []map[string]interface{}{
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Intranet"}}, "weight": 10},
 				{"filter": map[string]interface{}{"term": map[string]string{"type": "Blog"}}, "weight": 0.01},
@@ -226,6 +247,8 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		},
 		Query: finalQuery,
 		Highlight: map[string]interface{}{
+			"pre_tags":  []string{"**"},
+			"post_tags": []string{"**"},
 			"fields": map[string]interface{}{
 				"body": map[string]interface{}{
 					"type":                "unified",
@@ -271,7 +294,16 @@ func FormatSearchResults(term string, startIndex int, resp *SearchResponse) stri
 
 		// Add excerpt from highlight if available
 		if bodyHighlights, ok := hit.Highlight["body"]; ok && len(bodyHighlights) > 0 {
-			sb.WriteString(fmt.Sprintf("   **Excerpt:** %s\n", bodyHighlights[0]))
+			excerpt := bodyHighlights[0]
+			// Add ellipsis to indicate truncation
+			runes := []rune(excerpt)
+			if len(runes) > 0 && !unicode.IsUpper(runes[0]) {
+				excerpt = "…" + excerpt
+			}
+			if len(runes) > 0 && !strings.ContainsAny(string(runes[len(runes)-1:]), ".!?") {
+				excerpt = excerpt + "…"
+			}
+			sb.WriteString(fmt.Sprintf("   **Excerpt:** %s\n", excerpt))
 		}
 
 		sb.WriteString("\n")
