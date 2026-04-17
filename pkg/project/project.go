@@ -5,7 +5,7 @@ var (
 	gitSHA      = "n/a"
 	name        = "search-mcp"
 	source      = "https://github.com/giantswarm/search-mcp"
-	version     = "0.3.0"
+	version     = "0.3.1-dev"
 )
 
 func Description() string {
