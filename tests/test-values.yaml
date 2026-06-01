@@ -10,3 +10,8 @@ serviceMonitor:
 
 route:
   enabled: false
+  # values.schema.json requires route.hostnames (minItems 1) even when the
+  # route is disabled, so supply a placeholder. With enabled: false no HTTPRoute
+  # is rendered, so the Gateway API CRD is still not needed.
+  hostnames:
+    - search-mcp.test
