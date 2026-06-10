@@ -47,7 +47,8 @@ workflows:
               ignore:
                 - main
       - architect/upload-release-assets:
-          requires: go-build
+          requires:
+            - go-build
           binary: search-mcp
           filters:
             tags:
