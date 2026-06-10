@@ -48,6 +48,7 @@ fmt: ## Format code
 .PHONY: docker-build
 docker-build: ## Build Docker image
 	@echo "Building Docker image $(DOCKER_IMAGE):$(DOCKER_TAG)..."
+	CGO_ENABLED=0 GOOS=linux go build -o search-mcp-linux-$$(go env GOARCH) .
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	docker tag $(DOCKER_IMAGE):$(DOCKER_TAG) $(DOCKER_IMAGE):latest
 	@echo "Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"

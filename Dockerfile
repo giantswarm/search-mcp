@@ -1,28 +1,15 @@
-# Stage 1: Build
-FROM gsoci.azurecr.io/giantswarm/golang:1.26.4-alpine3.23 AS builder
-
-WORKDIR /app
-
-# Copy go module files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /search-mcp .
-
-# Stage 2: Runtime
+# The Go binary is built by CircleCI (architect/go-build) and attached to the
+# build context as <binary>-<os>-<arch>; this image only assembles the runtime.
+# For a local build, produce the binary first:
+#   CGO_ENABLED=0 go build -o search-mcp-linux-amd64 .
 FROM gsoci.azurecr.io/giantswarm/alpine:3.24.0
 
 # Install ca-certificates for HTTPS requests
 RUN apk --no-cache add ca-certificates
 
-# Copy binary from builder
-COPY --from=builder /search-mcp /usr/local/bin/search-mcp
+ARG TARGETOS
+ARG TARGETARCH
+COPY search-mcp-${TARGETOS}-${TARGETARCH} /usr/local/bin/search-mcp
 
 # Run as nobody user
 USER nobody
