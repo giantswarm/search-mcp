@@ -46,3 +46,11 @@ workflows:
             branches:
               ignore:
                 - main
+      - architect/upload-release-assets:
+          requires: go-build
+          binary: search-mcp
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
