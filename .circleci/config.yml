@@ -46,6 +46,7 @@ workflows:
             branches:
               ignore:
                 - main
+
       - architect/upload-release-assets:
           requires:
             - go-build
