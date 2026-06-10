@@ -13,5 +13,9 @@ image:
 serviceMonitor:
   enabled: false
 
+# route.hostnames must satisfy the values schema (minItems 1) even though the
+# route itself is disabled for the smoke test.
 route:
   enabled: false
+  hostnames:
+    - search-mcp.test.local
