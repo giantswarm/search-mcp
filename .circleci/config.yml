@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  architect: giantswarm/architect@dev:fix-cosign-blob-rekor-409  # TODO: revert to 9.3.0
+  architect: giantswarm/architect@dev:f913fe73fffd5342ea25f8d431a3c76f2d699e41  # TODO: revert to 9.3.0
 
 workflows:
   build:
