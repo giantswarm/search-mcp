@@ -2,8 +2,13 @@
 # cluster. The default chart renders a ServiceMonitor (Prometheus Operator
 # CRD) and an HTTPRoute (Gateway API CRD); neither CRD exists on a bare kind
 # cluster, so both are disabled here. A single replica is enough for the
-# smoke test.
+# smoke test. The image is pinned to a released tag because the branch path
+# is build+test only -- the dev image referenced by the packaged chart is
+# never pushed, so the pod would hang in ImagePullBackOff.
 replicaCount: 1
+
+image:
+  tag: "0.3.0"
 
 serviceMonitor:
   enabled: false
