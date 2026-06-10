@@ -1,8 +1,7 @@
 version: 2.1
 
 orbs:
-  architect: giantswarm/architect@dev:f913fe73fffd5342ea25f8d431a3c76f2d699e41  # TODO: revert to 9.3.0
-
+  architect: giantswarm/architect@dev:35567451c3eedacd4092e395043f2ad57cea9188
 workflows:
   build:
     jobs:
