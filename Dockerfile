@@ -16,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /search-mcp .
 
 # Stage 2: Runtime
-FROM gsoci.azurecr.io/giantswarm/alpine:3.23.4
+FROM gsoci.azurecr.io/giantswarm/alpine:3.24.0
 
 # Install ca-certificates for HTTPS requests
 RUN apk --no-cache add ca-certificates
