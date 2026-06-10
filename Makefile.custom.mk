@@ -48,6 +48,8 @@ fmt: ## Format code
 .PHONY: docker-build
 docker-build: ## Build Docker image
 	@echo "Building Docker image $(DOCKER_IMAGE):$(DOCKER_TAG)..."
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux-amd64 .
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $(BINARY_NAME)-linux-arm64 .
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	docker tag $(DOCKER_IMAGE):$(DOCKER_TAG) $(DOCKER_IMAGE):latest
 	@echo "Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"

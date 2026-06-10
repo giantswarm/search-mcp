@@ -52,7 +52,19 @@ make run-debug
 
 ### Building the Image
 
+The Dockerfile expects pre-built, architecture-specific binaries
+(`search-mcp-linux-amd64`, `search-mcp-linux-arm64`) in the repository root.
+The easiest way to build the image locally:
+
 ```bash
+make docker-build
+```
+
+Or manually:
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o search-mcp-linux-amd64 .
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o search-mcp-linux-arm64 .
 docker build -t giantswarm-search-mcp .
 ```
 

@@ -1,28 +1,15 @@
-# Stage 1: Build
-FROM gsoci.azurecr.io/giantswarm/golang:1.26.4-alpine3.23 AS builder
+FROM --platform=$BUILDPLATFORM gsoci.azurecr.io/giantswarm/alpine:3.24.0 AS certs
 
-WORKDIR /app
+FROM scratch
 
-# Copy go module files
-COPY go.mod go.sum ./
+COPY --from=certs /etc/passwd /etc/passwd
+COPY --from=certs /etc/group /etc/group
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /search-mcp .
-
-# Stage 2: Runtime
-FROM gsoci.azurecr.io/giantswarm/alpine:3.24.0
-
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
-
-# Copy binary from builder
-COPY --from=builder /search-mcp /usr/local/bin/search-mcp
+# Binary is pre-built per architecture by the architect/go-build CI job
+# (or by `make docker-build` locally); no RUN steps means no QEMU emulation.
+ARG TARGETARCH
+COPY search-mcp-linux-${TARGETARCH} /usr/local/bin/search-mcp
 
 # Run as nobody user
 USER nobody
