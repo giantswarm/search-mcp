@@ -2,7 +2,7 @@
 # build context as <binary>-<os>-<arch>; this image only assembles the runtime.
 # For a local build, produce the binary first:
 #   CGO_ENABLED=0 go build -o search-mcp-linux-amd64 .
-FROM gsoci.azurecr.io/giantswarm/alpine:3.24.0
+FROM gsoci.azurecr.io/giantswarm/alpine:3.24.1
 
 # Install ca-certificates for HTTPS requests
 RUN apk --no-cache add ca-certificates
