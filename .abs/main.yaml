@@ -3,3 +3,10 @@ replace-chart-version-with-git: true
 generate-metadata: true
 chart-dir: ./helm/search-mcp
 destination: ./build
+
+# app-build-suite's HelmTemplateValidator renders the chart with `helm template`
+# using values.yaml only. `route.hostnames` is deliberately `required` with no
+# default (an empty hostname list would attach the route to every hostname of the
+# parent Gateway), so a default-values render fails schema validation. Point the
+# validator at the same values file `ct lint` uses.
+helm-template-extra-values: helm/search-mcp/ci/ci-values.yaml
