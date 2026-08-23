@@ -62,7 +62,7 @@ func (s *FileTokenStorage) Store(ctx context.Context, tokens *TokenData) error {
 	}
 
 	// Serialize tokens to JSON
-	data, err := json.Marshal(tokens)
+	data, err := json.Marshal(tokens) //nolint:gosec // G117: serialized token data is AES-encrypted below before it ever touches disk
 	if err != nil {
 		return fmt.Errorf("failed to marshal tokens: %w", err)
 	}
@@ -145,7 +145,7 @@ func (s *FileTokenStorage) verifyPermissions() error {
 	}
 
 	// On Unix-like systems, check permissions
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != osWindows {
 		perm := info.Mode().Perm()
 		if perm != 0600 {
 			return fmt.Errorf("token file has incorrect permissions %o, expected 0600", perm)
@@ -180,7 +180,7 @@ func getConfigDir() (string, error) {
 		}
 		configDir = filepath.Join(home, "Library", "Application Support", "giantswarm")
 
-	case "windows":
+	case osWindows:
 		// Windows: Use %APPDATA%
 		appData := os.Getenv("APPDATA")
 		if appData == "" {

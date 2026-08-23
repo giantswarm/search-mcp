@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      # gosec G304 flags any file read whose path is built from a variable.
+      # In tests the only such reads load fixtures from the local testdata/
+      # directory via filepath.Join with constant names, which is spurious
+      # by design (same pattern as giantswarm/mcp-oauth#549).
+      - path: _test\.go
+        linters:
+          - gosec
+        text: "G304"

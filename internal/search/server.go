@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,6 +16,16 @@ import (
 	"github.com/giantswarm/search-mcp/internal/auth"
 	"github.com/giantswarm/search-mcp/internal/metrics"
 )
+
+// Transport names supported by the server.
+const (
+	transportStdio          = "stdio"
+	transportStreamableHTTP = "streamable-http"
+)
+
+// httpReadHeaderTimeout bounds how long the server waits for request headers,
+// protecting against Slowloris-style attacks.
+const httpReadHeaderTimeout = 10 * time.Second
 
 // ServerConfig holds configuration for the MCP server
 type ServerConfig struct {
@@ -65,7 +76,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 	// Initialize auth manager (for both HTTP and stdio mode)
 	var authMgr auth.AuthManager
 	var serverAddr string
-	if config.Transport == "streamable-http" {
+	if config.Transport == transportStreamableHTTP {
 		serverAddr = config.HTTPAddr
 	} else {
 		serverAddr = ":8080" // Default for device flow verification URL
@@ -96,7 +107,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 
 	// Initialize metrics collector based on transport
 	var metricsCollector metrics.Collector
-	if config.Transport == "streamable-http" {
+	if config.Transport == transportStreamableHTTP {
 		metricsCollector = metrics.NewPrometheusCollector()
 		logger.Info("metrics enabled", "endpoint", "/metrics")
 	} else {
@@ -121,14 +132,14 @@ func NewServer(config ServerConfig) (*Server, error) {
 // Start starts the MCP server with the configured transport
 func (s *Server) Start(ctx context.Context) error {
 	// If auth is enabled in stdio mode, start background HTTP server for device flow
-	if s.config.Transport == "stdio" && s.authMgr != nil {
+	if s.config.Transport == transportStdio && s.authMgr != nil {
 		go s.startBackgroundHTTPForDeviceFlow()
 	}
 
 	switch s.config.Transport {
-	case "stdio":
+	case transportStdio:
 		return s.startStdio(ctx)
-	case "streamable-http":
+	case transportStreamableHTTP:
 		return s.startHTTP(ctx)
 	default:
 		return fmt.Errorf("unsupported transport: %s (supported: stdio, streamable-http)", s.config.Transport)
@@ -147,8 +158,9 @@ func (s *Server) startBackgroundHTTPForDeviceFlow() {
 	}
 
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: httpReadHeaderTimeout,
 	}
 
 	s.logger.Info("starting background HTTP server for device flow", "addr", addr)
@@ -159,7 +171,7 @@ func (s *Server) startBackgroundHTTPForDeviceFlow() {
 
 // startStdio starts the server in stdio mode
 func (s *Server) startStdio(ctx context.Context) error {
-	s.logger.Info("starting MCP server", "transport", "stdio")
+	s.logger.Info("starting MCP server", "transport", transportStdio)
 
 	// ServeStdio handles signal handling internally
 	if err := server.ServeStdio(s.mcpServer); err != nil {
@@ -171,7 +183,7 @@ func (s *Server) startStdio(ctx context.Context) error {
 
 // startHTTP starts the server in HTTP mode
 func (s *Server) startHTTP(ctx context.Context) error {
-	s.logger.Info("starting MCP server", "transport", "streamable-http", "addr", s.config.HTTPAddr, "endpoint", s.config.HTTPEndpoint)
+	s.logger.Info("starting MCP server", "transport", transportStreamableHTTP, "addr", s.config.HTTPAddr, "endpoint", s.config.HTTPEndpoint)
 
 	// Create StreamableHTTPServer
 	mcpHTTPServer := server.NewStreamableHTTPServer(
@@ -199,7 +211,7 @@ func (s *Server) startHTTP(ctx context.Context) error {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`OK`))
+		_, _ = w.Write([]byte(`OK`))
 	})
 
 	// Add OAuth routes if auth is enabled
@@ -209,8 +221,9 @@ func (s *Server) startHTTP(ctx context.Context) error {
 
 	// Create custom HTTP server with our mux
 	httpServer := &http.Server{
-		Addr:    s.config.HTTPAddr,
-		Handler: mux,
+		Addr:              s.config.HTTPAddr,
+		Handler:           mux,
+		ReadHeaderTimeout: httpReadHeaderTimeout,
 	}
 
 	// Setup signal handling
@@ -292,12 +305,15 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 			// Device flow - need to link tokens to the device
 			userCode := cookie.Value
 
-			// Clear the cookie
+			// Clear the cookie (attributes must match the ones used when setting it)
 			http.SetCookie(w, &http.Cookie{
-				Name:   "device_user_code",
-				Value:  "",
-				Path:   "/",
-				MaxAge: -1,
+				Name:     "device_user_code",
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				Secure:   true,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
 			})
 
 			// The tokens were just stored in HandleCallback above
@@ -309,7 +325,7 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 			s.logger.Info("device flow authorization completed", "user_code", userCode)
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintf(w, `
+			_, _ = fmt.Fprintf(w, `
 <!DOCTYPE html>
 <html>
 <head>
@@ -329,7 +345,7 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
     <p>You can now close this window and return to your device to access intranet resources.</p>
 </body>
 </html>
-			`, userCode)
+			`, html.EscapeString(userCode))
 			return
 		}
 
@@ -337,7 +353,7 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 		s.logger.Info("authentication successful")
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 <!DOCTYPE html>
 <html>
 <head>
@@ -361,11 +377,12 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 
 	// Device flow authorization page
 	mux.HandleFunc("/device", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
+		switch r.Method {
+		case http.MethodGet:
 			s.serveDeviceAuthPage(w, r)
-		} else if r.Method == "POST" {
+		case http.MethodPost:
 			s.handleDeviceAuthorize(w, r)
-		} else {
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
@@ -379,7 +396,7 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 // serveDeviceAuthPage serves the device authorization page
 func (s *Server) serveDeviceAuthPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `
+	_, _ = fmt.Fprintf(w, `
 <!DOCTYPE html>
 <html>
 <head>
@@ -511,7 +528,8 @@ func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 		Name:     "device_user_code",
 		Value:    userCode,
 		Path:     "/",
-		MaxAge:   600, // 10 minutes
+		MaxAge:   600,  // 10 minutes
+		Secure:   true, // browsers treat localhost as a secure context, so this also works for the local device flow
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -526,7 +544,7 @@ func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveDeviceError(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
-	fmt.Fprintf(w, `
+	_, _ = fmt.Fprintf(w, `
 <!DOCTYPE html>
 <html>
 <head>

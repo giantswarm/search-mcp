@@ -154,7 +154,7 @@ To stay informed about security updates:
    ```bash
    # Check for updates
    go list -m -u all
-   
+
    # Update dependencies
    go get -u ./...
    go mod tidy
@@ -169,4 +169,3 @@ To stay informed about security updates:
    - Keep Go toolchain updated
    - Rebuild Docker images regularly
    - Apply security patches promptly
-

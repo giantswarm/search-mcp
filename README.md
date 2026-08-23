@@ -273,7 +273,7 @@ See [Development Guide](docs/development.md) for detailed instructions.
 ## Technical Documentation
 
 - **[Architecture](docs/architecture.md)** - How the server works internally
-- **[Security](docs/security.md)** - Security considerations and best practices  
+- **[Security](docs/security.md)** - Security considerations and best practices
 - **[Development](docs/development.md)** - Development setup and contribution guide
 
 ## License

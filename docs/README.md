@@ -41,4 +41,3 @@ See the [Development Guide](./development.md) for information on:
 - Code style guidelines
 - Testing procedures
 - Submitting changes
-

@@ -20,6 +20,18 @@ const (
 	fetchTimeout           = 60 * time.Second
 )
 
+// Elasticsearch query keys and field names reused across query construction.
+const (
+	esKeyQuery  = "query"
+	esKeyFilter = "filter"
+	esKeyTerm   = "term"
+	esKeyType   = "type"
+	esKeyFields = "fields"
+	esKeyWeight = "weight"
+	esFieldBody = "body"
+	esFieldText = "text"
+)
+
 // Client handles search operations
 type Client struct {
 	httpClient *http.Client
@@ -50,7 +62,7 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 	// Determine endpoint based on auth token presence
 	endpoint := publicSearchEndpoint
 	var authToken string
-	if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+	if token, ok := ctx.Value(authTokenContextKey).(string); ok && token != "" {
 		endpoint = intranetSearchEndpoint
 		authToken = token
 		c.logger.Debug("using authenticated intranet search endpoint")
@@ -76,7 +88,9 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
@@ -122,7 +136,7 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 
 	// Inject Bearer token if available in context (for authenticated requests)
 	if requiresAuth {
-		if token, ok := ctx.Value("auth_token").(string); ok && token != "" {
+		if token, ok := ctx.Value(authTokenContextKey).(string); ok && token != "" {
 			httpReq.Header.Set("Authorization", "Bearer "+token)
 			c.logger.Debug("auth token injected into request")
 		} else {
@@ -134,7 +148,9 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Handle auth-specific status codes
 	if resp.StatusCode == http.StatusUnauthorized {
@@ -169,9 +185,9 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		// Strict AND mode: all search terms must be present
 		innerQuery = map[string]interface{}{
 			"simple_query_string": map[string]interface{}{
-				"fields":           []string{"title^5", "body", "text"},
+				esKeyFields:        []string{"title^5", esFieldBody, esFieldText},
 				"default_operator": "AND",
-				"query":            req.Term,
+				esKeyQuery:         req.Term,
 			},
 		}
 	} else {
@@ -179,9 +195,9 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		// match the search terms, without requiring all terms to be present.
 		innerQuery = map[string]interface{}{
 			"multi_match": map[string]interface{}{
-				"query":                req.Term,
-				"fields":               []string{"title^5", "body", "text"},
-				"type":                 "best_fields",
+				esKeyQuery:             req.Term,
+				esKeyFields:            []string{"title^5", esFieldBody, esFieldText},
+				esKeyType:              "best_fields",
 				"operator":             "or",
 				"minimum_should_match": "30%",
 				"tie_breaker":          0.3,
@@ -192,12 +208,12 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 	// Wrap in function_score for type/breadcrumb boosting
 	baseQuery := map[string]interface{}{
 		"function_score": map[string]interface{}{
-			"query": innerQuery,
+			esKeyQuery: innerQuery,
 			"functions": []map[string]interface{}{
-				{"filter": map[string]interface{}{"term": map[string]string{"type": "Intranet"}}, "weight": 10},
-				{"filter": map[string]interface{}{"term": map[string]string{"type": "Blog"}}, "weight": 0.01},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "changes"}}, "weight": 0.0001},
-				{"filter": map[string]interface{}{"term": map[string]string{"breadcrumb": "api"}}, "weight": 0.0001},
+				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{esKeyType: "Intranet"}}, esKeyWeight: 10},
+				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{esKeyType: "Blog"}}, esKeyWeight: 0.01},
+				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{"breadcrumb": "changes"}}, esKeyWeight: 0.0001},
+				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{"breadcrumb": "api"}}, esKeyWeight: 0.0001},
 			},
 		},
 	}
@@ -209,7 +225,7 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 	// Add type filter
 	if req.TypeFilter != "" {
 		mustClauses = append(mustClauses, map[string]interface{}{
-			"term": map[string]string{"type": req.TypeFilter},
+			esKeyTerm: map[string]string{esKeyType: req.TypeFilter},
 		})
 	}
 
@@ -221,7 +237,7 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		for i, breadcrumb := range req.BreadcrumbFilter {
 			fieldName := fmt.Sprintf("breadcrumb_%d", i+1)
 			mustClauses = append(mustClauses, map[string]interface{}{
-				"term": map[string]string{fieldName: breadcrumb},
+				esKeyTerm: map[string]string{fieldName: breadcrumb},
 			})
 		}
 	}
@@ -243,21 +259,21 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 		Size: req.Size,
 		Sort: []string{"_score"},
 		Source: map[string][]string{
-			"excludes": {"text", "body"},
+			"excludes": {esFieldText, esFieldBody},
 		},
 		Query: finalQuery,
 		Highlight: map[string]interface{}{
 			"pre_tags":  []string{"**"},
 			"post_tags": []string{"**"},
-			"fields": map[string]interface{}{
-				"body": map[string]interface{}{
-					"type":                "unified",
+			esKeyFields: map[string]interface{}{
+				esFieldBody: map[string]interface{}{
+					esKeyType:             "unified",
 					"number_of_fragments": 1,
 					"no_match_size":       200,
 					"fragment_size":       150,
 				},
 				"title": map[string]interface{}{
-					"type":                "unified",
+					esKeyType:             "unified",
 					"number_of_fragments": 1,
 				},
 			},
@@ -269,10 +285,10 @@ func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
 func FormatSearchResults(term string, startIndex int, resp *SearchResponse) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("# Search results for %s\n\n", term))
-	sb.WriteString(fmt.Sprintf("Showing %d out of %d search results", len(resp.Hits.Hits), resp.Hits.Total.Value))
+	_, _ = fmt.Fprintf(&sb, "# Search results for %s\n\n", term)
+	_, _ = fmt.Fprintf(&sb, "Showing %d out of %d search results", len(resp.Hits.Hits), resp.Hits.Total.Value)
 	if startIndex > 0 {
-		sb.WriteString(fmt.Sprintf(", starting at %d", startIndex+1))
+		_, _ = fmt.Fprintf(&sb, ", starting at %d", startIndex+1)
 	}
 	sb.WriteString("\n\n")
 
@@ -280,20 +296,20 @@ func FormatSearchResults(term string, startIndex int, resp *SearchResponse) stri
 		n := startIndex + i + 1
 		source := hit.Source
 
-		sb.WriteString(fmt.Sprintf("%d. **[%s](%s)**\n", n, source.Title, source.URL))
-		sb.WriteString(fmt.Sprintf("   **Type:** %s\n", source.Type))
+		_, _ = fmt.Fprintf(&sb, "%d. **[%s](%s)**\n", n, source.Title, source.URL)
+		_, _ = fmt.Fprintf(&sb, "   **Type:** %s\n", source.Type)
 
 		if len(source.Breadcrumb) > 0 {
 			breadcrumbStr := strings.Join(source.Breadcrumb, " / ")
-			sb.WriteString(fmt.Sprintf("   **Breadcrumb:** %s\n", breadcrumbStr))
+			_, _ = fmt.Fprintf(&sb, "   **Breadcrumb:** %s\n", breadcrumbStr)
 		}
 
 		if source.Description != "" {
-			sb.WriteString(fmt.Sprintf("   **Description:** %s\n", source.Description))
+			_, _ = fmt.Fprintf(&sb, "   **Description:** %s\n", source.Description)
 		}
 
 		// Add excerpt from highlight if available
-		if bodyHighlights, ok := hit.Highlight["body"]; ok && len(bodyHighlights) > 0 {
+		if bodyHighlights, ok := hit.Highlight[esFieldBody]; ok && len(bodyHighlights) > 0 {
 			excerpt := bodyHighlights[0]
 			// Add ellipsis to indicate truncation
 			runes := []rune(excerpt)
@@ -303,7 +319,7 @@ func FormatSearchResults(term string, startIndex int, resp *SearchResponse) stri
 			if len(runes) > 0 && !strings.ContainsAny(string(runes[len(runes)-1:]), ".!?") {
 				excerpt = excerpt + "…"
 			}
-			sb.WriteString(fmt.Sprintf("   **Excerpt:** %s\n", excerpt))
+			_, _ = fmt.Fprintf(&sb, "   **Excerpt:** %s\n", excerpt)
 		}
 
 		sb.WriteString("\n")

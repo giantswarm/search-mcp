@@ -93,7 +93,7 @@ route:
   hostnames: []
   # - search-mcp.cluster.provider.gigantic.io
 
-  # @schema type:array; item:object
+  # @schema type:array; itemRef: parentref.schema.json
   # -- Optional parent gateway references
   parentRefs: []
   # - name: giantswarm-default

@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// osWindows is the runtime.GOOS value for Windows.
+const osWindows = "windows"
+
 // DeriveEncryptionKey generates a 32-byte encryption key from machine identifiers
 // This provides a balance between security and usability - the key is stable
 // across restarts but unique per machine.
@@ -23,7 +26,7 @@ func DeriveEncryptionKey() ([]byte, error) {
 		// Linux: use machine-id
 		identifiers = append(identifiers, getLinuxMachineID()...)
 
-	case "windows":
+	case osWindows:
 		// Windows: use hostname as primary identifier
 		// Note: A more robust solution would use Windows registry MachineGUID
 		identifiers = append(identifiers, getWindowsMachineID()...)

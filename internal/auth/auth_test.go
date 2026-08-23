@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// testValidToken is a placeholder access token used across test cases.
+const testValidToken = "valid-token"
+
 func TestTokenData_IsValid(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -27,7 +30,7 @@ func TestTokenData_IsValid(t *testing.T) {
 		{
 			name: "expired token",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(-1 * time.Hour),
 			},
 			expected: false,
@@ -35,7 +38,7 @@ func TestTokenData_IsValid(t *testing.T) {
 		{
 			name: "valid token",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(1 * time.Hour),
 			},
 			expected: true,
@@ -43,7 +46,7 @@ func TestTokenData_IsValid(t *testing.T) {
 		{
 			name: "token expiring soon but still valid",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(5 * time.Minute),
 			},
 			expected: true,
@@ -51,7 +54,7 @@ func TestTokenData_IsValid(t *testing.T) {
 		{
 			name: "token expires exactly now",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now(),
 			},
 			expected: false, // Already expired
@@ -93,7 +96,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "token with plenty of time",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(1 * time.Hour),
 			},
 			expected:    false,
@@ -102,7 +105,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "token with 15 minutes remaining",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(15 * time.Minute),
 			},
 			expected:    false,
@@ -111,7 +114,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "token with 11 minutes remaining",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(11 * time.Minute),
 			},
 			expected:    true,
@@ -120,7 +123,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "token with 5 minutes remaining",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(5 * time.Minute),
 			},
 			expected:    true,
@@ -129,7 +132,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "already expired token",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(-1 * time.Hour),
 			},
 			expected:    true,
@@ -138,7 +141,7 @@ func TestTokenData_NeedsRefresh(t *testing.T) {
 		{
 			name: "token at exactly 12 minute threshold",
 			token: &TokenData{
-				AccessToken: "valid-token",
+				AccessToken: testValidToken,
 				Expiry:      time.Now().Add(12 * time.Minute),
 			},
 			expected:    true,
@@ -164,7 +167,7 @@ func TestTokenData_RefreshThreshold(t *testing.T) {
 
 	// Token with exactly 12 minutes + 1 second should not need refresh
 	token1 := &TokenData{
-		AccessToken: "valid-token",
+		AccessToken: testValidToken,
 		Expiry:      time.Now().Add(12*time.Minute + 1*time.Second),
 	}
 	if token1.NeedsRefresh() {
@@ -173,7 +176,7 @@ func TestTokenData_RefreshThreshold(t *testing.T) {
 
 	// Token with exactly 12 minutes should need refresh (< threshold)
 	token2 := &TokenData{
-		AccessToken: "valid-token",
+		AccessToken: testValidToken,
 		Expiry:      time.Now().Add(12 * time.Minute),
 	}
 	if !token2.NeedsRefresh() {
@@ -182,7 +185,7 @@ func TestTokenData_RefreshThreshold(t *testing.T) {
 
 	// Token with exactly 12 minutes - 1 second should need refresh
 	token3 := &TokenData{
-		AccessToken: "valid-token",
+		AccessToken: testValidToken,
 		Expiry:      time.Now().Add(12*time.Minute - 1*time.Second),
 	}
 	if !token3.NeedsRefresh() {

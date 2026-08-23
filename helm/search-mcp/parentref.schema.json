@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ParentReference",
+    "description": "Gateway API ParentReference identifying the Gateway (or other parent resource) this route attaches to.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "name"
+    ],
+    "properties": {
+        "group": {
+            "type": "string",
+            "description": "Group of the referent. Defaults to gateway.networking.k8s.io when unspecified."
+        },
+        "kind": {
+            "type": "string",
+            "description": "Kind of the referent, e.g. Gateway."
+        },
+        "name": {
+            "type": "string",
+            "description": "Name of the referent."
+        },
+        "namespace": {
+            "type": "string",
+            "description": "Namespace of the referent. Defaults to the route's namespace when unspecified."
+        },
+        "sectionName": {
+            "type": "string",
+            "description": "Name of a section (listener) within the parent resource."
+        },
+        "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Network port this route targets on the parent."
+        }
+    }
+}
