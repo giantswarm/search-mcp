@@ -215,8 +215,8 @@ func (m *Manager) AuthorizeDeviceWithUserCode(userCode string, tokens *TokenData
 
 // formatError provides user-friendly error messages with guidance
 func (m *Manager) formatError(err error) error {
-	switch {
-	case err == ErrTokenNotFound:
+	switch err {
+	case ErrTokenNotFound:
 		return fmt.Errorf(
 			"not authenticated: no valid session found\n"+
 				"Please authenticate by visiting: %s/oauth/login\n"+
@@ -224,14 +224,14 @@ func (m *Manager) formatError(err error) error {
 			m.config.ServerAddr,
 		)
 
-	case err == ErrTokenExpired:
+	case ErrTokenExpired:
 		return fmt.Errorf(
 			"authentication expired: your session has timed out\n"+
 				"Please re-authenticate by visiting: %s/oauth/login",
 			m.config.ServerAddr,
 		)
 
-	case err == ErrRefreshFailed:
+	case ErrRefreshFailed:
 		return fmt.Errorf(
 			"token refresh failed: %w\n"+
 				"This may indicate revoked access or network issues.\n"+

@@ -19,6 +19,88 @@ const (
 	logMaxArrayElements = 5
 )
 
+// Tool parameter names shared across input schemas and handlers.
+const (
+	paramTerm            = "term"
+	paramStartIndex      = "start_index"
+	paramSize            = "size"
+	paramRequireAllTerms = "require_all_terms"
+	paramURL             = "url"
+)
+
+// JSON schema keys and type names used in tool input schemas.
+const (
+	schemaKeyType        = "type"
+	schemaKeyDescription = "description"
+	schemaKeyDefault     = "default"
+	schemaTypeObject     = "object"
+	schemaTypeString     = "string"
+	schemaTypeInteger    = "integer"
+)
+
+// Parameter descriptions shared by the search tools.
+const (
+	descSearchTerm      = "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word."
+	descStartIndex      = "The start index of the search results (optional, defaults to 0)"
+	descRequireAllTerms = "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries."
+)
+
+// contextKey is a private type for context values set by this package,
+// avoiding collisions with keys from other packages.
+type contextKey string
+
+// authTokenContextKey carries the OAuth access token for authenticated requests.
+const authTokenContextKey contextKey = "auth_token"
+
+// searchInputSchema builds the input schema shared by the search tools,
+// optionally extended with tool-specific properties.
+func searchInputSchema(extraProperties map[string]interface{}) mcp.ToolInputSchema {
+	properties := map[string]interface{}{
+		paramTerm: map[string]interface{}{
+			schemaKeyType:        schemaTypeString,
+			schemaKeyDescription: descSearchTerm,
+		},
+		paramStartIndex: map[string]interface{}{
+			schemaKeyType:        schemaTypeInteger,
+			schemaKeyDescription: descStartIndex,
+			schemaKeyDefault:     0,
+		},
+		paramSize: map[string]interface{}{
+			schemaKeyType:        schemaTypeInteger,
+			schemaKeyDescription: fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+			schemaKeyDefault:     itemsPerPageDefault,
+		},
+		paramRequireAllTerms: map[string]interface{}{
+			schemaKeyType:        "boolean",
+			schemaKeyDescription: descRequireAllTerms,
+			schemaKeyDefault:     false,
+		},
+	}
+	for name, property := range extraProperties {
+		properties[name] = property
+	}
+
+	return mcp.ToolInputSchema{
+		Type:       schemaTypeObject,
+		Properties: properties,
+		Required:   []string{paramTerm},
+	}
+}
+
+// urlInputSchema builds the input schema for tools taking a single URL parameter.
+func urlInputSchema(description string) mcp.ToolInputSchema {
+	return mcp.ToolInputSchema{
+		Type: schemaTypeObject,
+		Properties: map[string]interface{}{
+			paramURL: map[string]interface{}{
+				schemaKeyType:        schemaTypeString,
+				schemaKeyDescription: description,
+			},
+		},
+		Required: []string{paramURL},
+	}
+}
+
 // sanitizeForLog truncates long strings and limits array sizes to prevent log bloat
 func sanitizeForLog(args map[string]any) map[string]any {
 	result := make(map[string]any, len(args))
@@ -71,44 +153,21 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"term": map[string]interface{}{
-					"type":        "string",
-					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
-				},
-				"start_index": map[string]interface{}{
-					"type":        "integer",
-					"description": "The start index of the search results (optional, defaults to 0)",
-					"default":     0,
-				},
-				"size": map[string]interface{}{
-					"type":        "integer",
-					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
-					"default":     itemsPerPageDefault,
-				},
-				"type_filter": map[string]interface{}{
-					"type":        "string",
-					"description": "To restrict the results to only one source type, e.g. \"Intranet\" (optional, defaults to \"\")",
-					"default":     "",
-				},
-				"breadcrumb_filter": map[string]interface{}{
-					"type":        "array",
-					"description": "To restrict the results to a specific section, e.g. [\"docs\", \"support-and-ops\"] (optional, defaults to [])",
-					"items": map[string]interface{}{
-						"type": "string",
-					},
-					"default": []interface{}{},
-				},
-				"require_all_terms": map[string]interface{}{
-					"type":        "boolean",
-					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
-					"default":     false,
-				},
+		InputSchema: searchInputSchema(map[string]interface{}{
+			"type_filter": map[string]interface{}{
+				schemaKeyType:        schemaTypeString,
+				schemaKeyDescription: "To restrict the results to only one source type, e.g. \"Intranet\" (optional, defaults to \"\")",
+				schemaKeyDefault:     "",
 			},
-			Required: []string{"term"},
-		},
+			"breadcrumb_filter": map[string]interface{}{
+				schemaKeyType:        "array",
+				schemaKeyDescription: "To restrict the results to a specific section, e.g. [\"docs\", \"support-and-ops\"] (optional, defaults to [])",
+				"items": map[string]interface{}{
+					schemaKeyType: schemaTypeString,
+				},
+				schemaKeyDefault: []interface{}{},
+			},
+		}),
 	}, withLogging("search", searchHandler(client)))
 
 	// Register search_docs tool
@@ -119,31 +178,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"term": map[string]interface{}{
-					"type":        "string",
-					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
-				},
-				"start_index": map[string]interface{}{
-					"type":        "integer",
-					"description": "The start index of the search results (optional, defaults to 0)",
-					"default":     0,
-				},
-				"size": map[string]interface{}{
-					"type":        "integer",
-					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
-					"default":     itemsPerPageDefault,
-				},
-				"require_all_terms": map[string]interface{}{
-					"type":        "boolean",
-					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
-					"default":     false,
-				},
-			},
-			Required: []string{"term"},
-		},
+		InputSchema: searchInputSchema(nil),
 	}, withLogging("search_docs", searchDocsHandler(client)))
 
 	// Register search_runbook tool
@@ -154,31 +189,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"term": map[string]interface{}{
-					"type":        "string",
-					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
-				},
-				"start_index": map[string]interface{}{
-					"type":        "integer",
-					"description": "The start index of the search results (optional, defaults to 0)",
-					"default":     0,
-				},
-				"size": map[string]interface{}{
-					"type":        "integer",
-					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
-					"default":     itemsPerPageDefault,
-				},
-				"require_all_terms": map[string]interface{}{
-					"type":        "boolean",
-					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
-					"default":     false,
-				},
-			},
-			Required: []string{"term"},
-		},
+		InputSchema: searchInputSchema(nil),
 	}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, transport)))
 
 	// Register search_ops_recipe tool
@@ -189,31 +200,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"term": map[string]interface{}{
-					"type":        "string",
-					"description": "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word.",
-				},
-				"start_index": map[string]interface{}{
-					"type":        "integer",
-					"description": "The start index of the search results (optional, defaults to 0)",
-					"default":     0,
-				},
-				"size": map[string]interface{}{
-					"type":        "integer",
-					"description": fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
-					"default":     itemsPerPageDefault,
-				},
-				"require_all_terms": map[string]interface{}{
-					"type":        "boolean",
-					"description": "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries.",
-					"default":     false,
-				},
-			},
-			Required: []string{"term"},
-		},
+		InputSchema: searchInputSchema(nil),
 	}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, transport)))
 
 	// Register read_docs_url tool
@@ -224,16 +211,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"url": map[string]interface{}{
-					"type":        "string",
-					"description": "The URL to fetch content from, e.g. https://docs.giantswarm.io/some-page/",
-				},
-			},
-			Required: []string{"url"},
-		},
+		InputSchema: urlInputSchema("The URL to fetch content from, e.g. https://docs.giantswarm.io/some-page/"),
 	}, withLogging("read_docs_url", readDocsURLHandler(client)))
 
 	// Register read_docs_index tool
@@ -245,7 +223,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
 		InputSchema: mcp.ToolInputSchema{
-			Type:       "object",
+			Type:       schemaTypeObject,
 			Properties: map[string]interface{}{},
 			Required:   []string{},
 		},
@@ -259,16 +237,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"url": map[string]interface{}{
-					"type":        "string",
-					"description": "The URL to fetch content from (e.g., https://handbook.giantswarm.io/docs/some-page/)",
-				},
-			},
-			Required: []string{"url"},
-		},
+		InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://handbook.giantswarm.io/docs/some-page/)"),
 	}, withLogging("read_handbook_url", readHandbookURLHandler(client)))
 
 	// Register read_intranet_url tool
@@ -279,16 +248,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			ReadOnlyHint:  mcp.ToBoolPtr(true),
 			OpenWorldHint: mcp.ToBoolPtr(false),
 		},
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"url": map[string]interface{}{
-					"type":        "string",
-					"description": "The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)",
-				},
-			},
-			Required: []string{"url"},
-		},
+		InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
 	}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, transport)))
 }
 
@@ -296,7 +256,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, transport string) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Stdio mode: Use device flow
-		if transport == "stdio" {
+		if transport == transportStdio {
 			// Check if auth manager is configured
 			if authMgr == nil {
 				return mcp.NewToolResultError(
@@ -376,7 +336,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, trans
 		}
 
 		// Inject token into context for client to use
-		ctx = context.WithValue(ctx, "auth_token", token)
+		ctx = context.WithValue(ctx, authTokenContextKey, token)
 
 		// Call original handler
 		return handler(ctx, request)
@@ -387,16 +347,16 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, trans
 func searchHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		term := request.GetString("term", "")
+		term := request.GetString(paramTerm, "")
 		if term == "" {
 			return mcp.NewToolResultError("term parameter is required"), nil
 		}
 
-		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", itemsPerPageDefault)
+		startIndex := request.GetInt(paramStartIndex, 0)
+		size := request.GetInt(paramSize, itemsPerPageDefault)
 		typeFilter := request.GetString("type_filter", "")
 		breadcrumbFilter := request.GetStringSlice("breadcrumb_filter", []string{})
-		requireAllTerms := request.GetBool("require_all_terms", false)
+		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
 
 		// Perform search
 		searchReq := SearchRequest{
@@ -424,14 +384,14 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		term := request.GetString("term", "")
+		term := request.GetString(paramTerm, "")
 		if term == "" {
 			return mcp.NewToolResultError("term parameter is required"), nil
 		}
 
-		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", itemsPerPageDefault)
-		requireAllTerms := request.GetBool("require_all_terms", false)
+		startIndex := request.GetInt(paramStartIndex, 0)
+		size := request.GetInt(paramSize, itemsPerPageDefault)
+		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
 
 		// Perform search
 		searchReq := SearchRequest{
@@ -458,14 +418,14 @@ func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		term := request.GetString("term", "")
+		term := request.GetString(paramTerm, "")
 		if term == "" {
 			return mcp.NewToolResultError("term parameter is required"), nil
 		}
 
-		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", itemsPerPageDefault)
-		requireAllTerms := request.GetBool("require_all_terms", false)
+		startIndex := request.GetInt(paramStartIndex, 0)
+		size := request.GetInt(paramSize, itemsPerPageDefault)
+		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
 
 		// Perform search with runbook breadcrumb filter
 		searchReq := SearchRequest{
@@ -492,14 +452,14 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		term := request.GetString("term", "")
+		term := request.GetString(paramTerm, "")
 		if term == "" {
 			return mcp.NewToolResultError("term parameter is required"), nil
 		}
 
-		startIndex := request.GetInt("start_index", 0)
-		size := request.GetInt("size", itemsPerPageDefault)
-		requireAllTerms := request.GetBool("require_all_terms", false)
+		startIndex := request.GetInt(paramStartIndex, 0)
+		size := request.GetInt(paramSize, itemsPerPageDefault)
+		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
 
 		// Perform search with ops-recipes breadcrumb filter
 		searchReq := SearchRequest{
@@ -526,7 +486,7 @@ func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
 func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		url := request.GetString("url", "")
+		url := request.GetString(paramURL, "")
 		if url == "" {
 			return mcp.NewToolResultError("url parameter is required"), nil
 		}
@@ -576,7 +536,7 @@ func readDocsIndexHandler(client *Client) server.ToolHandlerFunc {
 func readHandbookURLHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		url := request.GetString("url", "")
+		url := request.GetString(paramURL, "")
 		if url == "" {
 			return mcp.NewToolResultError("url parameter is required"), nil
 		}
@@ -606,7 +566,7 @@ func readHandbookURLHandler(client *Client) server.ToolHandlerFunc {
 func readIntranetURLHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
-		url := request.GetString("url", "")
+		url := request.GetString(paramURL, "")
 		if url == "" {
 			return mcp.NewToolResultError("url parameter is required"), nil
 		}

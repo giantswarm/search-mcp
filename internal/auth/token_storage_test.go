@@ -9,12 +9,8 @@ import (
 )
 
 func TestFileTokenStorage_StoreAndLoad(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	// Create test token data
 	testToken := &TokenData{
@@ -39,7 +35,7 @@ func TestFileTokenStorage_StoreAndLoad(t *testing.T) {
 	ctx := context.Background()
 
 	// Test Store
-	err = storage.Store(ctx, testToken)
+	err := storage.Store(ctx, testToken)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -76,12 +72,8 @@ func TestFileTokenStorage_StoreAndLoad(t *testing.T) {
 }
 
 func TestFileTokenStorage_LoadNonExistent(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testKey := make([]byte, 32)
 	storage := &FileTokenStorage{
@@ -92,19 +84,15 @@ func TestFileTokenStorage_LoadNonExistent(t *testing.T) {
 	ctx := context.Background()
 
 	// Try to load non-existent file
-	_, err = storage.Load(ctx)
+	_, err := storage.Load(ctx)
 	if err != ErrTokenNotFound {
 		t.Errorf("Expected ErrTokenNotFound, got %v", err)
 	}
 }
 
 func TestFileTokenStorage_Delete(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testToken := &TokenData{
 		AccessToken: "test-token",
@@ -120,7 +108,7 @@ func TestFileTokenStorage_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	// Store token
-	err = storage.Store(ctx, testToken)
+	err := storage.Store(ctx, testToken)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -143,12 +131,8 @@ func TestFileTokenStorage_Delete(t *testing.T) {
 }
 
 func TestFileTokenStorage_DeleteNonExistent(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testKey := make([]byte, 32)
 	storage := &FileTokenStorage{
@@ -157,19 +141,15 @@ func TestFileTokenStorage_DeleteNonExistent(t *testing.T) {
 	}
 
 	// Delete non-existent file should not error
-	err = storage.Delete()
+	err := storage.Delete()
 	if err != nil {
 		t.Errorf("Delete of non-existent file should not error: %v", err)
 	}
 }
 
 func TestFileTokenStorage_CorruptedFile(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testKey := make([]byte, 32)
 	filePath := filepath.Join(tempDir, "tokens.enc")
@@ -180,7 +160,7 @@ func TestFileTokenStorage_CorruptedFile(t *testing.T) {
 	}
 
 	// Write corrupted data to file
-	err = os.WriteFile(filePath, []byte("corrupted data"), 0600)
+	err := os.WriteFile(filePath, []byte("corrupted data"), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write corrupted file: %v", err)
 	}
@@ -200,12 +180,8 @@ func TestFileTokenStorage_CorruptedFile(t *testing.T) {
 }
 
 func TestFileTokenStorage_StoreNilToken(t *testing.T) {
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testKey := make([]byte, 32)
 	storage := &FileTokenStorage{
@@ -216,7 +192,7 @@ func TestFileTokenStorage_StoreNilToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Try to store nil token
-	err = storage.Store(ctx, nil)
+	err := storage.Store(ctx, nil)
 	if err == nil {
 		t.Error("Expected error when storing nil token")
 	}
@@ -224,16 +200,12 @@ func TestFileTokenStorage_StoreNilToken(t *testing.T) {
 
 func TestFileTokenStorage_FilePermissions(t *testing.T) {
 	// Skip on Windows where permission model is different
-	if os.Getenv("GOOS") == "windows" {
+	if os.Getenv("GOOS") == osWindows {
 		t.Skip("Skipping permission test on Windows")
 	}
 
-	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "token-storage-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create temporary directory for testing (cleaned up automatically)
+	tempDir := t.TempDir()
 
 	testToken := &TokenData{
 		AccessToken: "test-token",
@@ -251,7 +223,7 @@ func TestFileTokenStorage_FilePermissions(t *testing.T) {
 	ctx := context.Background()
 
 	// Store token
-	err = storage.Store(ctx, testToken)
+	err := storage.Store(ctx, testToken)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
