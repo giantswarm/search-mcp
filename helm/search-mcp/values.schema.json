@@ -7,14 +7,16 @@
             "type": "array",
             "description": "Environment variables for the container Example for OAuth configuration: - name: OAUTH_ISSUER_URL value: \"https://dex.example.com\" - name: OAUTH_CLIENT_ID value: \"searchmcp\"",
             "items": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false
             }
         },
         "envFrom": {
             "type": "array",
             "description": "Environment variables from secrets or configmaps Example: - secretRef: name: search-mcp-oauth",
             "items": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false
             }
         },
         "fullnameOverride": {
@@ -32,6 +34,7 @@
         "image": {
             "type": "object",
             "description": "Container image settings",
+            "additionalProperties": false,
             "properties": {
                 "pullPolicy": {
                     "type": "string",
@@ -58,10 +61,12 @@
         "livenessProbe": {
             "type": "object",
             "description": "Liveness probe",
+            "additionalProperties": false,
             "properties": {
                 "httpGet": {
                     "type": "object",
                     "description": "HTTP GET probe",
+                    "additionalProperties": false,
                     "properties": {
                         "path": {
                             "type": "string",
@@ -81,23 +86,22 @@
         },
         "nodeSelector": {
             "type": "object",
-            "description": "Optional node selector for pod assignment"
+            "description": "Optional node selector for pod assignment",
+            "additionalProperties": false
         },
         "podAnnotations": {
             "type": "object",
-            "description": "Pod annotations"
+            "description": "Pod annotations",
+            "additionalProperties": false
         },
         "podDisruptionBudget": {
             "type": "object",
             "description": "Settings about PodDisruptionBudget creation",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "type": "boolean",
                     "description": "Whether to create a PodDisruptionBudget resource"
-                },
-                "maxUnavailable": {
-                    "type": "integer",
-                    "description": "Maximum number of pods that can be unavailable during a disruption. Cannot be combined with minAvailable."
                 },
                 "minAvailable": {
                     "type": "integer",
@@ -107,19 +111,23 @@
         },
         "podLabels": {
             "type": "object",
-            "description": "Pod labels"
+            "description": "Pod labels",
+            "additionalProperties": false
         },
         "podSecurityContext": {
             "type": "object",
-            "description": "Pod security context"
+            "description": "Pod security context",
+            "additionalProperties": false
         },
         "readinessProbe": {
             "type": "object",
             "description": "Readiness probe",
+            "additionalProperties": false,
             "properties": {
                 "httpGet": {
                     "type": "object",
                     "description": "HTTP GET probe",
+                    "additionalProperties": false,
                     "properties": {
                         "path": {
                             "type": "string",
@@ -140,10 +148,12 @@
         "resources": {
             "type": "object",
             "description": "Resource requests and limits",
+            "additionalProperties": false,
             "properties": {
                 "limits": {
                     "type": "object",
                     "description": "Resource limits",
+                    "additionalProperties": false,
                     "properties": {
                         "cpu": {
                             "type": "string",
@@ -158,6 +168,7 @@
                 "requests": {
                     "type": "object",
                     "description": "Resource requests",
+                    "additionalProperties": false,
                     "properties": {
                         "cpu": {
                             "type": "string",
@@ -177,13 +188,15 @@
             "required": [
                 "hostnames"
             ],
+            "additionalProperties": false,
             "properties": {
                 "additionalRules": {
                     "type": "array"
                 },
                 "annotations": {
                     "type": "object",
-                    "description": "Optional extra annotations for the route"
+                    "description": "Optional extra annotations for the route",
+                    "additionalProperties": false
                 },
                 "enabled": {
                     "type": "boolean",
@@ -192,6 +205,7 @@
                 "externalDNS": {
                     "type": "object",
                     "description": "External DNS configuration for automatic DNS record creation",
+                    "additionalProperties": false,
                     "properties": {
                         "target": {
                             "type": "string",
@@ -224,16 +238,19 @@
                 },
                 "labels": {
                     "type": "object",
-                    "description": "Optional extra labels for the route"
+                    "description": "Optional extra labels for the route",
+                    "additionalProperties": false
                 },
                 "matches": {
                     "type": "array",
                     "description": "Request matching rules",
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "path": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "type": {
                                         "type": "string"
@@ -254,20 +271,24 @@
                     "type": "array",
                     "description": "Optional parent gateway references",
                     "items": {
-                        "type": "object"
+                        "type": "object",
+                        "additionalProperties": false
                     }
                 },
                 "securityPolicy": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "annotations": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": false
                         },
                         "enabled": {
                             "type": "boolean"
                         },
                         "labels": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": false
                         }
                     }
                 }
@@ -276,12 +297,14 @@
         "securityContext": {
             "type": "object",
             "description": "Container security context",
+            "additionalProperties": false,
             "properties": {
                 "allowPrivilegeEscalation": {
                     "type": "boolean"
                 },
                 "capabilities": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "drop": {
                             "type": "array",
@@ -302,6 +325,7 @@
                 },
                 "seccompProfile": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "type": {
                             "type": "string"
@@ -313,15 +337,18 @@
         "service": {
             "type": "object",
             "description": "Service settings",
+            "additionalProperties": false,
             "properties": {
                 "type": {
                     "type": "string"
                 },
                 "annotations": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": false
                 },
                 "labels": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": false
                 },
                 "port": {
                     "type": "integer"
@@ -331,10 +358,12 @@
         "serviceAccount": {
             "type": "object",
             "description": "Service account settings",
+            "additionalProperties": false,
             "properties": {
                 "annotations": {
                     "type": "object",
-                    "description": "Annotations to add to the service account"
+                    "description": "Annotations to add to the service account",
+                    "additionalProperties": false
                 },
                 "automount": {
                     "type": "boolean",
@@ -353,6 +382,7 @@
         "serviceMonitor": {
             "type": "object",
             "description": "Settings about ServiceMonitor creation for Prometheus Operator",
+            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "type": "boolean",
@@ -363,6 +393,7 @@
         "strategy": {
             "type": "object",
             "description": "Deployment strategy",
+            "additionalProperties": false,
             "properties": {
                 "type": {
                     "type": "string",
@@ -374,6 +405,7 @@
                 "rollingUpdate": {
                     "type": "object",
                     "description": "Rolling update settings. Only applicable if type is RollingUpdate.",
+                    "additionalProperties": false,
                     "properties": {
                         "maxSurge": {
                             "type": "integer",
@@ -396,12 +428,15 @@
             "description": "Pod topology spread constraints",
             "items": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
                     "labelSelector": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "matchLabels": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "app.kubernetes.io/instance": {
                                         "type": "string"

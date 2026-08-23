@@ -356,4 +356,3 @@ make verify         # Run all verification steps
 - [mcp-go](https://github.com/mark3labs/mcp-go)
 - [Go Documentation](https://golang.org/doc/)
 - [OpenSearch Query DSL](https://opensearch.org/docs/latest/query-dsl/)
-

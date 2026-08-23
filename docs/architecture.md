@@ -76,7 +76,7 @@ The server supports two MCP transports:
 - **stdio**: Standard input/output for local integration (Cursor, Claude Desktop)
   - Uses `server.ServeStdio()` from mcp-go
   - Handles SIGTERM/SIGINT for graceful shutdown
-  
+
 - **streamable-http**: HTTP-based transport for network deployment
   - Uses `StreamableHTTPServer` from mcp-go
   - Configurable endpoint path (default: `/mcp`)
@@ -198,4 +198,3 @@ Return formatted content
 - No state storage or session management
 - Standard Go HTTP client with reasonable timeouts
 - See [Security](./security.md) for detailed information
-
