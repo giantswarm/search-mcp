@@ -1,5 +1,45 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+        "parentref.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "title": "ParentReference",
+            "description": "Gateway API ParentReference identifying the Gateway (or other parent resource) this route attaches to.",
+            "required": [
+                "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "group": {
+                    "type": "string",
+                    "description": "Group of the referent. Defaults to gateway.networking.k8s.io when unspecified."
+                },
+                "kind": {
+                    "type": "string",
+                    "description": "Kind of the referent, e.g. Gateway."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name of the referent."
+                },
+                "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referent. Defaults to the route's namespace when unspecified."
+                },
+                "port": {
+                    "type": "integer",
+                    "description": "Network port this route targets on the parent.",
+                    "maximum": 65535,
+                    "minimum": 1
+                },
+                "sectionName": {
+                    "type": "string",
+                    "description": "Name of a section (listener) within the parent resource."
+                }
+            }
+        }
+    },
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -271,8 +311,7 @@
                     "type": "array",
                     "description": "Optional parent gateway references",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": false
+                        "$ref": "#/$defs/parentref.schema.json"
                     }
                 },
                 "securityPolicy": {
