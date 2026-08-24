@@ -43,6 +43,37 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
+        "baseDomain": {
+            "type": "string"
+        },
+        "bootstrapMode": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "chartOperator": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "ciliumNetworkPolicy": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "cluster": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "clusterCA": {
+            "type": "string"
+        },
+        "clusterCIDR": {
+            "type": "string"
+        },
+        "clusterDNSIP": {
+            "type": "string"
+        },
+        "clusterID": {
+            "type": "string"
+        },
         "env": {
             "type": "array",
             "description": "Environment variables for the container Example for OAuth configuration: - name: OAUTH_ISSUER_URL value: \"https://dex.example.com\" - name: OAUTH_CLIENT_ID value: \"searchmcp\"",
@@ -62,6 +93,9 @@
         "fullnameOverride": {
             "type": "string",
             "description": "Optional: overrides the generated application name completely. Cannot be combined with nameOverride."
+        },
+        "gcpProject": {
+            "type": "string"
         },
         "global": {
             "type": [
@@ -158,6 +192,9 @@
             "type": "object",
             "description": "Pod security context",
             "additionalProperties": false
+        },
+        "provider": {
+            "type": "string"
         },
         "readinessProbe": {
             "type": "object",
@@ -457,6 +494,9 @@
                     }
                 }
             }
+        },
+        "subscriptionID": {
+            "type": "string"
         },
         "tolerations": {
             "type": "array",
