@@ -32,3 +32,6 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+// Pin transitive modules flagged by the OSS Index scan (nancy) in CI.
+replace golang.org/x/mod => golang.org/x/mod v0.40.0
