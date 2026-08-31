@@ -18,7 +18,7 @@ var chromeMarkers = []string{
 func readFixture(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join("testdata", name)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", path, err)
 	}
