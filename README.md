@@ -195,6 +195,8 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
   - `search_runbook` - Search DevOps runbooks
   - `search_ops_recipe` - Search ops recipes
 
+A server over streamable HTTP without `OAUTH_ISSUER_URL` does not advertise the intranet tools; over stdio they stay and explain how to configure OAuth.
+
 ### Token Storage
 
 Tokens are encrypted and stored at:

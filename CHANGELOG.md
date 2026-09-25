@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
+
 ### Fixed
 
 - Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
