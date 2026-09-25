@@ -1,5 +1,6 @@
 {{- if .Values.route.enabled -}}
 {{- $route := .Values.route }}
+{{- if not $route.hostnames }}{{ fail "route.hostnames needs at least one hostname when route.enabled is true" }}{{- end }}
 {{- $routeName := $route.name | default (include "search-mcp.fullname" .) }}
 ---
 apiVersion: gateway.networking.k8s.io/v1

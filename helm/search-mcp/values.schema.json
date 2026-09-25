@@ -277,7 +277,8 @@
                 },
                 "enabled": {
                     "type": "boolean",
-                    "description": "Set to true to enable route creation"
+                    "description": "Set to true to enable route creation (needs at least one entry in hostnames)",
+                    "default": false
                 },
                 "externalDNS": {
                     "type": "object",

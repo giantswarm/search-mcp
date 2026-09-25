@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Helm chart: installs with its default values. The schema demanded at least one `route.hostnames` entry even with `route.enabled: false`, so an in-cluster deployment without a route was refused.
+- Helm chart: installs with its default values. The route is off by default (`route.enabled: false`), `route.hostnames` may be empty while it is off, and an enabled route without a hostname fails the render with a clear message instead of matching every host on the Gateway. Before, the schema refused the defaults and every in-cluster deployment without a route.
 - Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
 
 ## [0.3.0] - 2026-04-17

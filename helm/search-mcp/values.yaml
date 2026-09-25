@@ -74,8 +74,8 @@ service:
 
 # -- Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/
 route:
-  # -- Set to true to enable route creation
-  enabled: true
+  # -- Set to true to enable route creation (needs at least one entry in hostnames)
+  enabled: false
 
   # @schema enum:[GRPCRoute, HTTPRoute, TCPRoute, TLSRoute, UDPRoute]
   # -- Kind of route to create.

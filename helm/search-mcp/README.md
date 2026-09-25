@@ -31,8 +31,8 @@ MCP server for access to Giant Swarm documentation and more
 | podSecurityContext | object | `{}` | Pod security context |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
 | service | object | `{"annotations":{},"labels":{},"port":80,"type":"ClusterIP"}` | Service settings |
-| route | object | `{"additionalRules":[],"annotations":{},"enabled":true,"externalDNS":{"target":""},"filters":[],"hostnames":[],"kind":"HTTPRoute","labels":{},"matches":[{"path":{"type":"PathPrefix","value":"/"}}],"name":"","parentRefs":[],"securityPolicy":{"annotations":{},"enabled":false,"labels":{}}}` | Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/ |
-| route.enabled | bool | `true` | Set to true to enable route creation |
+| route | object | `{"additionalRules":[],"annotations":{},"enabled":false,"externalDNS":{"target":""},"filters":[],"hostnames":[],"kind":"HTTPRoute","labels":{},"matches":[{"path":{"type":"PathPrefix","value":"/"}}],"name":"","parentRefs":[],"securityPolicy":{"annotations":{},"enabled":false,"labels":{}}}` | Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/ |
+| route.enabled | bool | `false` | Set to true to enable route creation (needs at least one entry in hostnames) |
 | route.kind | string | `"HTTPRoute"` | Kind of route to create. |
 | route.name | string | `""` | Override the route name (defaults to the name of the Helm release) |
 | route.annotations | object | `{}` | Optional extra annotations for the route |
