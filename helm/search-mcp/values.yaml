@@ -74,8 +74,8 @@ service:
 
 # -- Gateway API route configuration. More information can be found at https://gateway-api.sigs.k8s.io/
 route:
-  # -- Set to true to enable route creation
-  enabled: true
+  # -- Set to true to enable route creation (needs at least one entry in hostnames)
+  enabled: false
 
   # @schema enum:[GRPCRoute, HTTPRoute, TCPRoute, TLSRoute, UDPRoute]
   # -- Kind of route to create.
@@ -88,7 +88,7 @@ route:
   # -- Optional extra labels for the route
   labels: {}
 
-  # @schema required; item:string; uniqueItems; minItems:1
+  # @schema required; item:string; uniqueItems
   # -- Hostnames that the route should match. Supports templating with {{ .Values.xxx }}
   hostnames: []
   # - search-mcp.cluster.provider.gigantic.io

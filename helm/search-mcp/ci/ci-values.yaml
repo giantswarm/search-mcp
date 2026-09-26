@@ -1,4 +1,5 @@
 route:
+  enabled: true
   hostnames:
     - my-host-name
   parentRefs:

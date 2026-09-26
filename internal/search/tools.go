@@ -145,6 +145,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			return handler(ctx, request)
 		}
 	}
+	// A server over HTTP without OAuth cannot serve the intranet: its tools
+	// are not advertised. Over stdio they stay and explain how to configure it.
+	intranet := authMgr != nil || transport == transportStdio
+
 	// Register search tool
 	s.AddTool(mcp.Tool{
 		Name:        "search",
@@ -181,27 +185,31 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 		InputSchema: searchInputSchema(nil),
 	}, withLogging("search_docs", searchDocsHandler(client)))
 
-	// Register search_runbook tool
-	s.AddTool(mcp.Tool{
-		Name:        "search_runbook",
-		Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: searchInputSchema(nil),
-	}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, transport)))
+	if intranet {
+		// Register search_runbook tool
+		s.AddTool(mcp.Tool{
+			Name:        "search_runbook",
+			Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
+			Annotations: mcp.ToolAnnotation{
+				ReadOnlyHint:  mcp.ToBoolPtr(true),
+				OpenWorldHint: mcp.ToBoolPtr(false),
+			},
+			InputSchema: searchInputSchema(nil),
+		}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, transport)))
+	}
 
-	// Register search_ops_recipe tool
-	s.AddTool(mcp.Tool{
-		Name:        "search_ops_recipe",
-		Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: searchInputSchema(nil),
-	}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, transport)))
+	if intranet {
+		// Register search_ops_recipe tool
+		s.AddTool(mcp.Tool{
+			Name:        "search_ops_recipe",
+			Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
+			Annotations: mcp.ToolAnnotation{
+				ReadOnlyHint:  mcp.ToBoolPtr(true),
+				OpenWorldHint: mcp.ToBoolPtr(false),
+			},
+			InputSchema: searchInputSchema(nil),
+		}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, transport)))
+	}
 
 	// Register read_docs_url tool
 	s.AddTool(mcp.Tool{
@@ -240,16 +248,18 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 		InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://handbook.giantswarm.io/docs/some-page/)"),
 	}, withLogging("read_handbook_url", readHandbookURLHandler(client)))
 
-	// Register read_intranet_url tool
-	s.AddTool(mcp.Tool{
-		Name:        "read_intranet_url",
-		Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
-	}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, transport)))
+	if intranet {
+		// Register read_intranet_url tool
+		s.AddTool(mcp.Tool{
+			Name:        "read_intranet_url",
+			Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
+			Annotations: mcp.ToolAnnotation{
+				ReadOnlyHint:  mcp.ToBoolPtr(true),
+				OpenWorldHint: mcp.ToBoolPtr(false),
+			},
+			InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
+		}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, transport)))
+	}
 }
 
 // requireAuth wraps a handler to require authentication
