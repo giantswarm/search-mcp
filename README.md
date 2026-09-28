@@ -156,6 +156,18 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
    - Sign in with your Giant Swarm credentials
    - You're authenticated!
 
+#### Shared HTTP server behind an MCP gateway
+
+A server that many people reach through an MCP gateway (for example muster) takes each caller's identity from the request instead of one process-wide login:
+
+```bash
+export FORWARDED_TOKEN_ISSUER_URL=https://dex.operations.awsprod.gigantic.io
+export FORWARDED_TOKEN_AUDIENCE=searchmcp
+search-mcp serve --transport=streamable-http --http-addr=:8080
+```
+
+The gateway forwards the caller's bearer token (muster `forwardToken`, or a token exchanged at this issuer). The server checks its signature, issuer, audience and expiry, uses it for that request's intranet calls only, and never stores it. A call without a valid token gets an authentication error. With forwarded tokens configured, the `OAUTH_*` login and its `/oauth/login` endpoint are not used. The intranet accepts tokens of the issuer above, so the token the gateway forwards must come from it.
+
 #### Stdio Mode (Claude Desktop, Cursor, etc.)
 
 1. **Set environment variables**:
@@ -195,7 +207,7 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
   - `search_runbook` - Search DevOps runbooks
   - `search_ops_recipe` - Search ops recipes
 
-A server over streamable HTTP without `OAUTH_ISSUER_URL` does not advertise the intranet tools; over stdio they stay and explain how to configure OAuth.
+A server over streamable HTTP without `OAUTH_ISSUER_URL` or `FORWARDED_TOKEN_ISSUER_URL` does not advertise the intranet tools; over stdio they stay and explain how to configure OAuth.
 
 ### Token Storage
 

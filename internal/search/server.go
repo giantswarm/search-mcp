@@ -40,6 +40,7 @@ type Server struct {
 	mcpServer *server.MCPServer
 	client    *Client
 	authMgr   auth.AuthManager
+	forwarded *auth.ForwardedTokenVerifier
 	logger    *slog.Logger
 	config    ServerConfig
 	metrics   metrics.Collector
@@ -90,8 +91,26 @@ func NewServer(config ServerConfig) (*Server, error) {
 		ServerAddr:   serverAddr,
 	}
 
-	// Only create auth manager if configuration is provided
-	if authConfig.IssuerURL != "" && authConfig.ClientID != "" {
+	forwardedConfig := auth.ForwardedConfig{
+		IssuerURL: os.Getenv("FORWARDED_TOKEN_ISSUER_URL"),
+		Audience:  os.Getenv("FORWARDED_TOKEN_AUDIENCE"),
+	}
+
+	// Over HTTP behind an MCP gateway, each request carries its caller's
+	// token; the process-wide login is not used.
+	if forwardedConfig.Enabled() && config.Transport != transportStreamableHTTP {
+		logger.Warn("forwarded tokens apply to streamable-http only; ignored", "transport", config.Transport)
+	}
+	var forwarded *auth.ForwardedTokenVerifier
+	switch {
+	case forwardedConfig.Enabled() && config.Transport == transportStreamableHTTP:
+		var err error
+		forwarded, err = auth.NewForwardedTokenVerifier(context.Background(), forwardedConfig)
+		if err != nil {
+			return nil, fmt.Errorf("forwarded tokens: %w", err)
+		}
+		logger.Info("forwarded tokens enabled", "issuer", forwardedConfig.IssuerURL, "audience", forwardedConfig.Audience)
+	case authConfig.IssuerURL != "" && authConfig.ClientID != "":
 		var err error
 		authMgr, err = auth.NewManager(authConfig, logger)
 		if err != nil {
@@ -100,7 +119,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 		} else {
 			logger.Info("authentication enabled", "issuer", authConfig.IssuerURL, "transport", config.Transport)
 		}
-	} else {
+	default:
 		logger.Info("authentication not configured",
 			"note", "Set OAUTH_ISSUER_URL and OAUTH_CLIENT_ID (OAUTH_CLIENT_SECRET is optional) to enable intranet access")
 	}
@@ -115,7 +134,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 	}
 
 	// Register tools
-	RegisterTools(mcpServer, searchClient, authMgr, config.Transport, logger, metricsCollector)
+	RegisterTools(mcpServer, searchClient, authMgr, forwarded, config.Transport, logger, metricsCollector)
 
 	logger.Info("MCP server initialized", "name", "giantswarm-search", "tools", 5)
 
@@ -123,6 +142,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 		mcpServer: mcpServer,
 		client:    searchClient,
 		authMgr:   authMgr,
+		forwarded: forwarded,
 		logger:    logger,
 		config:    config,
 		metrics:   metricsCollector,
@@ -186,10 +206,11 @@ func (s *Server) startHTTP(ctx context.Context) error {
 	s.logger.Info("starting MCP server", "transport", transportStreamableHTTP, "addr", s.config.HTTPAddr, "endpoint", s.config.HTTPEndpoint)
 
 	// Create StreamableHTTPServer
-	mcpHTTPServer := server.NewStreamableHTTPServer(
-		s.mcpServer,
-		server.WithEndpointPath(s.config.HTTPEndpoint),
-	)
+	httpOptions := []server.StreamableHTTPOption{server.WithEndpointPath(s.config.HTTPEndpoint)}
+	if s.forwarded != nil {
+		httpOptions = append(httpOptions, server.WithHTTPContextFunc(withForwardedToken))
+	}
+	mcpHTTPServer := server.NewStreamableHTTPServer(s.mcpServer, httpOptions...)
 
 	// Create custom mux that combines MCP endpoints and OAuth routes
 	mux := http.NewServeMux()
