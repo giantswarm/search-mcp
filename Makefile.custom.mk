@@ -93,8 +93,9 @@ verify: fmt lint test ## Run all verification steps (format, lint, test)
 .PHONY: schema
 schema: ## Generate JSON Schema for chart values
 	@echo "Generating JSON Schema for Helm chart values..."
-	cd helm/search-mcp && helm schema
+	helm schema --config helm/search-mcp/.schema.yaml
 	@echo "Normalizing schema..."
+	python3 -c 'import json,sys; h=lambda o: {**{k:v for k,v in o.items() if k!="additionalProperties"},"unevaluatedProperties":False} if ("$$ref" in o and o.get("additionalProperties") is False) else o; p=sys.argv[1]; f=open(p,encoding="utf-8"); d=json.load(f,object_hook=h); f.close(); f=open(p,"w",encoding="utf-8"); json.dump(d,f); f.close()' ./helm/search-mcp/values.schema.json
 	schemalint normalize ./helm/search-mcp/values.schema.json -o ./helm/search-mcp/values.schema.json --force
 	@echo "Validating schema..."
 	schemalint verify ./helm/search-mcp/values.schema.json
