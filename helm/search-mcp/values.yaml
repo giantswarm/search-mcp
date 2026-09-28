@@ -178,11 +178,6 @@ volumeMounts: []
 #     value: "https://dex.example.com"
 #   - name: OAUTH_CLIENT_ID
 #     value: "searchmcp"
-# Behind an MCP gateway that forwards each caller's token:
-#   - name: FORWARDED_TOKEN_ISSUER_URL
-#     value: "https://dex.example.com"
-#   - name: FORWARDED_TOKEN_AUDIENCE
-#     value: "searchmcp"
 env: []
 
 # @schema type:array; item:object
