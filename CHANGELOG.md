@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Over streamable HTTP, `FORWARDED_TOKEN_ISSUER_URL` and `FORWARDED_TOKEN_AUDIENCE` make a shared server reach the intranet as each caller: it takes the bearer token an MCP gateway forwards with the request, verifies its signature, issuer, audience and expiry, and uses it for that request only, never storing it. The intranet tools are advertised in this mode; a call without a valid token gets an authentication error. Stdio and the `OAUTH_*` login are unchanged.
+
 ### Changed
 
 - Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.

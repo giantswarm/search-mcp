@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -51,6 +52,20 @@ type contextKey string
 
 // authTokenContextKey carries the OAuth access token for authenticated requests.
 const authTokenContextKey contextKey = "auth_token"
+
+// forwardedTokenContextKey carries the bearer token of the HTTP request, not
+// yet verified.
+const forwardedTokenContextKey contextKey = "forwarded_token"
+
+// withForwardedToken puts the request's bearer token, if any, into the context
+// of that request's tool calls.
+func withForwardedToken(ctx context.Context, r *http.Request) context.Context {
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || token == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, forwardedTokenContextKey, token)
+}
 
 // searchInputSchema builds the input schema shared by the search tools,
 // optionally extended with tool-specific properties.
@@ -136,7 +151,7 @@ func sanitizeValue(v any) any {
 }
 
 // RegisterTools registers all search tools with the MCP server
-func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, transport string, logger *slog.Logger, metricsCollector metrics.Collector) {
+func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, forwarded *auth.ForwardedTokenVerifier, transport string, logger *slog.Logger, metricsCollector metrics.Collector) {
 	// withLogging wraps a handler to log tool invocations and record metrics
 	withLogging := func(name string, handler server.ToolHandlerFunc) server.ToolHandlerFunc {
 		return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -145,9 +160,10 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			return handler(ctx, request)
 		}
 	}
-	// A server over HTTP without OAuth cannot serve the intranet: its tools
-	// are not advertised. Over stdio they stay and explain how to configure it.
-	intranet := authMgr != nil || transport == transportStdio
+	// A server over HTTP without OAuth or forwarded tokens cannot serve the
+	// intranet: its tools are not advertised. Over stdio they stay and explain
+	// how to configure it.
+	intranet := authMgr != nil || forwarded != nil || transport == transportStdio
 
 	// Register search tool
 	s.AddTool(mcp.Tool{
@@ -195,7 +211,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 				OpenWorldHint: mcp.ToBoolPtr(false),
 			},
 			InputSchema: searchInputSchema(nil),
-		}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, transport)))
+		}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, forwarded, transport)))
 	}
 
 	if intranet {
@@ -208,7 +224,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 				OpenWorldHint: mcp.ToBoolPtr(false),
 			},
 			InputSchema: searchInputSchema(nil),
-		}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, transport)))
+		}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, forwarded, transport)))
 	}
 
 	// Register read_docs_url tool
@@ -258,13 +274,31 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 				OpenWorldHint: mcp.ToBoolPtr(false),
 			},
 			InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
-		}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, transport)))
+		}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, forwarded, transport)))
 	}
 }
 
 // requireAuth wraps a handler to require authentication
-func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, transport string) server.ToolHandlerFunc {
+func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwarded *auth.ForwardedTokenVerifier, transport string) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Behind an MCP gateway: the caller's own forwarded token, used for
+		// this request only.
+		if forwarded != nil {
+			token, _ := ctx.Value(forwardedTokenContextKey).(string)
+			if token == "" {
+				return mcp.NewToolResultError(
+					"❌ Authentication required\n\n" +
+						"This server reaches the intranet as the caller, with the bearer token " +
+						"the MCP gateway forwards. The request carried none: sign in to the gateway, " +
+						"and have it forward your token to this server."), nil
+			}
+			if err := forwarded.Verify(ctx, token); err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v\n\n"+
+					"Sign in to the MCP gateway again.", err)), nil
+			}
+			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
+		}
+
 		// Stdio mode: Use device flow
 		if transport == transportStdio {
 			// Check if auth manager is configured
