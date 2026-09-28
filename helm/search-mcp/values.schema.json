@@ -1,6 +1,198 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$defs": {
+        "_definitions.json": {
+            "definitions": {
+                "io.k8s.api.core.v1.ConfigMapEnvSource": {
+                    "type": "object",
+                    "description": "ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.\n\nThe contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names"
+                        },
+                        "optional": {
+                            "type": "boolean",
+                            "description": "Specify whether the ConfigMap must be defined"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.ConfigMapKeySelector": {
+                    "type": "object",
+                    "description": "Selects a key from a ConfigMap.",
+                    "required": [
+                        "key"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "key": {
+                            "type": "string",
+                            "description": "The key to select."
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names"
+                        },
+                        "optional": {
+                            "type": "boolean",
+                            "description": "Specify whether the ConfigMap or its key must be defined"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.EnvFromSource": {
+                    "type": "object",
+                    "description": "EnvFromSource represents the source of a set of ConfigMaps or Secrets",
+                    "additionalProperties": false,
+                    "properties": {
+                        "configMapRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ConfigMapEnvSource",
+                            "description": "The ConfigMap to select from"
+                        },
+                        "prefix": {
+                            "type": "string",
+                            "description": "Optional text to prepend to the name of each environment variable. Must be a C_IDENTIFIER."
+                        },
+                        "secretRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.SecretEnvSource",
+                            "description": "The Secret to select from"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.EnvVar": {
+                    "type": "object",
+                    "description": "EnvVar represents an environment variable present in a Container.",
+                    "required": [
+                        "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the environment variable. Must be a C_IDENTIFIER."
+                        },
+                        "value": {
+                            "type": "string",
+                            "description": "Variable references $(VAR_NAME) are expanded using the previously defined environment variables in the container and any service environment variables. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Defaults to \"\"."
+                        },
+                        "valueFrom": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.EnvVarSource",
+                            "description": "Source for the environment variable's value. Cannot be used if value is not empty."
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.EnvVarSource": {
+                    "type": "object",
+                    "description": "EnvVarSource represents a source for the value of an EnvVar.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "configMapKeyRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                            "description": "Selects a key of a ConfigMap."
+                        },
+                        "fieldRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ObjectFieldSelector",
+                            "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs."
+                        },
+                        "resourceFieldRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ResourceFieldSelector",
+                            "description": "Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported."
+                        },
+                        "secretKeyRef": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                            "description": "Selects a key of a secret in the pod's namespace"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.ObjectFieldSelector": {
+                    "type": "object",
+                    "description": "ObjectFieldSelector selects an APIVersioned field of an object.",
+                    "required": [
+                        "fieldPath"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "apiVersion": {
+                            "type": "string",
+                            "description": "Version of the schema the FieldPath is written in terms of, defaults to \"v1\"."
+                        },
+                        "fieldPath": {
+                            "type": "string",
+                            "description": "Path of the field to select in the specified API version."
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.ResourceFieldSelector": {
+                    "type": "object",
+                    "description": "ResourceFieldSelector represents container resources (cpu, memory) and their output format",
+                    "required": [
+                        "resource"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "containerName": {
+                            "type": "string",
+                            "description": "Container name: required for volumes, optional for env vars"
+                        },
+                        "divisor": {
+                            "$ref": "#/$defs/_definitions.json/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+                            "description": "Specifies the output format of the exposed resources, defaults to \"1\""
+                        },
+                        "resource": {
+                            "type": "string",
+                            "description": "Required: resource to select"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.SecretEnvSource": {
+                    "type": "object",
+                    "description": "SecretEnvSource selects a Secret to populate the environment variables with.\n\nThe contents of the target Secret's Data field will represent the key-value pairs as environment variables.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names"
+                        },
+                        "optional": {
+                            "type": "boolean",
+                            "description": "Specify whether the Secret must be defined"
+                        }
+                    }
+                },
+                "io.k8s.api.core.v1.SecretKeySelector": {
+                    "type": "object",
+                    "description": "SecretKeySelector selects a key of a Secret.",
+                    "required": [
+                        "key"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "key": {
+                            "type": "string",
+                            "description": "The key of the secret to select from.  Must be a valid secret key."
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names"
+                        },
+                        "optional": {
+                            "type": "boolean",
+                            "description": "Specify whether the Secret or its key must be defined"
+                        }
+                    }
+                },
+                "io.k8s.apimachinery.pkg.api.resource.Quantity": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ]
+                }
+            }
+        },
         "parentref.schema.json": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
@@ -78,16 +270,14 @@
             "type": "array",
             "description": "Environment variables for the container Example for OAuth configuration: - name: OAUTH_ISSUER_URL value: \"https://dex.example.com\" - name: OAUTH_CLIENT_ID value: \"searchmcp\"",
             "items": {
-                "type": "object",
-                "additionalProperties": false
+                "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.EnvVar"
             }
         },
         "envFrom": {
             "type": "array",
             "description": "Environment variables from secrets or configmaps Example: - secretRef: name: search-mcp-oauth",
             "items": {
-                "type": "object",
-                "additionalProperties": false
+                "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.EnvFromSource"
             }
         },
         "fullnameOverride": {
@@ -103,7 +293,7 @@
                 "null"
             ],
             "description": "Global values shared between all subcharts",
-            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key."
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key."
         },
         "image": {
             "type": "object",

@@ -171,7 +171,7 @@ volumes: []
 # -- Extra volume mounts
 volumeMounts: []
 
-# @schema type:array; item:object
+# @schema type:array; itemRef:$k8s/_definitions.json#/definitions/io.k8s.api.core.v1.EnvVar
 # -- Environment variables for the container
 # Example for OAuth configuration:
 #   - name: OAUTH_ISSUER_URL
@@ -180,7 +180,7 @@ volumeMounts: []
 #     value: "searchmcp"
 env: []
 
-# @schema type:array; item:object
+# @schema type:array; itemRef:$k8s/_definitions.json#/definitions/io.k8s.api.core.v1.EnvFromSource
 # -- Environment variables from secrets or configmaps
 # Example:
 #   - secretRef:

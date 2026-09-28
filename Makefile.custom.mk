@@ -93,7 +93,7 @@ verify: fmt lint test ## Run all verification steps (format, lint, test)
 .PHONY: schema
 schema: ## Generate JSON Schema for chart values
 	@echo "Generating JSON Schema for Helm chart values..."
-	cd helm/search-mcp && helm schema
+	helm schema --config helm/search-mcp/.schema.yaml
 	@echo "Normalizing schema..."
 	schemalint normalize ./helm/search-mcp/values.schema.json -o ./helm/search-mcp/values.schema.json --force
 	@echo "Validating schema..."
