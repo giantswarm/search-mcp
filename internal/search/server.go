@@ -206,11 +206,7 @@ func (s *Server) startHTTP(ctx context.Context) error {
 	s.logger.Info("starting MCP server", "transport", transportStreamableHTTP, "addr", s.config.HTTPAddr, "endpoint", s.config.HTTPEndpoint)
 
 	// Create StreamableHTTPServer
-	httpOptions := []server.StreamableHTTPOption{server.WithEndpointPath(s.config.HTTPEndpoint)}
-	if s.forwarded != nil {
-		httpOptions = append(httpOptions, server.WithHTTPContextFunc(withForwardedToken))
-	}
-	mcpHTTPServer := server.NewStreamableHTTPServer(s.mcpServer, httpOptions...)
+	mcpHTTPServer := s.streamableHTTPServer()
 
 	// Create custom mux that combines MCP endpoints and OAuth routes
 	mux := http.NewServeMux()
@@ -283,6 +279,16 @@ func (s *Server) startHTTP(ctx context.Context) error {
 
 	s.logger.Info("HTTP server stopped gracefully")
 	return nil
+}
+
+// streamableHTTPServer serves MCP over streamable HTTP; with forwarded tokens,
+// each request's bearer token reaches its tool calls.
+func (s *Server) streamableHTTPServer() *server.StreamableHTTPServer {
+	options := []server.StreamableHTTPOption{server.WithEndpointPath(s.config.HTTPEndpoint)}
+	if s.forwarded != nil {
+		options = append(options, server.WithHTTPContextFunc(withForwardedToken))
+	}
+	return server.NewStreamableHTTPServer(s.mcpServer, options...)
 }
 
 // registerOAuthRoutes registers OAuth authentication routes
