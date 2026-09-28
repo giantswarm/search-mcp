@@ -6,7 +6,6 @@
                 "io.k8s.api.core.v1.ConfigMapEnvSource": {
                     "type": "object",
                     "description": "ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.\n\nThe contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.",
-                    "additionalProperties": false,
                     "properties": {
                         "name": {
                             "type": "string",
@@ -24,7 +23,6 @@
                     "required": [
                         "key"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                         "key": {
                             "type": "string",
@@ -43,7 +41,6 @@
                 "io.k8s.api.core.v1.EnvFromSource": {
                     "type": "object",
                     "description": "EnvFromSource represents the source of a set of ConfigMaps or Secrets",
-                    "additionalProperties": false,
                     "properties": {
                         "configMapRef": {
                             "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ConfigMapEnvSource",
@@ -65,7 +62,6 @@
                     "required": [
                         "name"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                         "name": {
                             "type": "string",
@@ -84,7 +80,6 @@
                 "io.k8s.api.core.v1.EnvVarSource": {
                     "type": "object",
                     "description": "EnvVarSource represents a source for the value of an EnvVar.",
-                    "additionalProperties": false,
                     "properties": {
                         "configMapKeyRef": {
                             "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
@@ -110,7 +105,6 @@
                     "required": [
                         "fieldPath"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                         "apiVersion": {
                             "type": "string",
@@ -128,7 +122,6 @@
                     "required": [
                         "resource"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                         "containerName": {
                             "type": "string",
@@ -147,7 +140,6 @@
                 "io.k8s.api.core.v1.SecretEnvSource": {
                     "type": "object",
                     "description": "SecretEnvSource selects a Secret to populate the environment variables with.\n\nThe contents of the target Secret's Data field will represent the key-value pairs as environment variables.",
-                    "additionalProperties": false,
                     "properties": {
                         "name": {
                             "type": "string",
@@ -165,7 +157,6 @@
                     "required": [
                         "key"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                         "key": {
                             "type": "string",
@@ -293,7 +284,7 @@
                 "null"
             ],
             "description": "Global values shared between all subcharts",
-            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key."
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key."
         },
         "image": {
             "type": "object",
