@@ -53,9 +53,9 @@ func assertNoSecretsLogged(t *testing.T, logged string, secrets ...string) {
 
 func TestTokenManager_StoreAndGetToken_NeverLogsTokenValues(t *testing.T) {
 	const (
-		accessToken  = "super-secret-access-token-value"
-		refreshToken = "super-secret-refresh-token-value"
-		idToken      = "super-secret-id-token-value"
+		accessToken  = "super-secret-access-token-value"  //nolint:gosec // G101: fake test value, not a real credential
+		refreshToken = "super-secret-refresh-token-value" //nolint:gosec // G101: fake test value, not a real credential
+		idToken      = "super-secret-id-token-value"      //nolint:gosec // G101: fake test value, not a real credential
 	)
 
 	var buf bytes.Buffer
@@ -67,7 +67,7 @@ func TestTokenManager_StoreAndGetToken_NeverLogsTokenValues(t *testing.T) {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		IDToken:      idToken,
-		TokenType:    "Bearer",
+		TokenType:    testBearerTokenType,
 		Expiry:       time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("StoreTokens: %v", err)
@@ -82,11 +82,11 @@ func TestTokenManager_StoreAndGetToken_NeverLogsTokenValues(t *testing.T) {
 
 func TestTokenManager_Refresh_NeverLogsTokenValues(t *testing.T) {
 	const (
-		oldAccessToken  = "old-secret-access-token-value"
-		oldRefreshToken = "old-secret-refresh-token-value"
-		newAccessToken  = "new-secret-access-token-value"
-		newRefreshToken = "new-secret-refresh-token-value"
-		newIDToken      = "new-secret-id-token-value"
+		oldAccessToken  = "old-secret-access-token-value"  //nolint:gosec // G101: fake test value, not a real credential
+		oldRefreshToken = "old-secret-refresh-token-value" //nolint:gosec // G101: fake test value, not a real credential
+		newAccessToken  = "new-secret-access-token-value"  //nolint:gosec // G101: fake test value, not a real credential
+		newRefreshToken = "new-secret-refresh-token-value" //nolint:gosec // G101: fake test value, not a real credential
+		newIDToken      = "new-secret-id-token-value"      //nolint:gosec // G101: fake test value, not a real credential
 	)
 
 	mux := http.NewServeMux()
@@ -95,7 +95,7 @@ func TestTokenManager_Refresh_NeverLogsTokenValues(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token":  newAccessToken,
 			"refresh_token": newRefreshToken,
-			"token_type":    "Bearer",
+			"token_type":    testBearerTokenType,
 			"expires_in":    3600,
 			"id_token":      newIDToken,
 		})
@@ -114,7 +114,7 @@ func TestTokenManager_Refresh_NeverLogsTokenValues(t *testing.T) {
 	manager.currentToken = &TokenData{
 		AccessToken:  oldAccessToken,
 		RefreshToken: oldRefreshToken,
-		TokenType:    "Bearer",
+		TokenType:    testBearerTokenType,
 		// Within the 12-minute proactive refresh threshold, but not expired.
 		Expiry: time.Now().Add(5 * time.Minute),
 	}
