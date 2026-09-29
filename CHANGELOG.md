@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
 - The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.
 
 ### Added
