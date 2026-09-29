@@ -141,3 +141,53 @@ func TestRequireAuth_ForwardedTokens(t *testing.T) {
 		}
 	}
 }
+
+func TestOptionalAuth_ForwardedTokens(t *testing.T) {
+	verifier, issuer := forwardedVerifier(t)
+	var reached bool
+	var seen string
+	handler := optionalAuth(func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		reached = true
+		seen, _ = ctx.Value(authTokenContextKey).(string)
+		return mcp.NewToolResultText("ok"), nil
+	}, nil, verifier)
+
+	call := func(token string) *mcp.CallToolResult {
+		t.Helper()
+		reached, seen = false, ""
+		ctx := context.Background()
+		if token != "" {
+			ctx = context.WithValue(ctx, forwardedTokenContextKey, token)
+		}
+		result, err := handler(ctx, mcp.CallToolRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+
+	// A caller with a valid token searches with it.
+	token := issuer.Token(t, issuer.URL, "searchmcp", "alice", time.Hour)
+	if result := call(token); result.IsError {
+		t.Fatalf("unexpected error result %v", result.Content)
+	}
+	if seen != token {
+		t.Error("handler did not get the caller's token")
+	}
+
+	// A caller without a token still searches public content.
+	if result := call(""); result.IsError {
+		t.Fatalf("no token: unexpected error result %v", result.Content)
+	}
+	if !reached || seen != "" {
+		t.Errorf("no token: reached %v, token %q", reached, seen)
+	}
+
+	// A token that fails verification is reported, not silently dropped.
+	if result := call(issuer.Token(t, issuer.URL, "other", "alice", time.Hour)); !result.IsError {
+		t.Error("wrong audience: want an error result")
+	}
+	if reached {
+		t.Error("wrong audience: handler was reached")
+	}
+}

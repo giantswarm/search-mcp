@@ -188,7 +188,7 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 				schemaKeyDefault: []interface{}{},
 			},
 		}),
-	}, withLogging("search", searchHandler(client)))
+	}, withLogging("search", optionalAuth(searchHandler(client), authMgr, forwarded)))
 
 	// Register search_docs tool
 	s.AddTool(mcp.Tool{
@@ -275,6 +275,33 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 			},
 			InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
 		}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, forwarded, transport)))
+	}
+}
+
+// optionalAuth wraps a handler that serves public content to anyone and also
+// intranet content to an authenticated caller.
+func optionalAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwarded *auth.ForwardedTokenVerifier) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		if forwarded != nil {
+			token, _ := ctx.Value(forwardedTokenContextKey).(string)
+			if token == "" {
+				return handler(ctx, request)
+			}
+			if err := forwarded.Verify(ctx, token); err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v\n\n"+
+					"Sign in to the MCP gateway again.", err)), nil
+			}
+			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
+		}
+
+		if authMgr == nil || !authMgr.IsAuthenticated() {
+			return handler(ctx, request)
+		}
+		token, err := authMgr.GetToken(ctx)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v", err)), nil
+		}
+		return handler(context.WithValue(ctx, authTokenContextKey, token), request)
 	}
 }
 
