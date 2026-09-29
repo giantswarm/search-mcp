@@ -16,7 +16,7 @@ func TestFileTokenStorage_StoreAndLoad(t *testing.T) {
 	testToken := &TokenData{
 		AccessToken:  "test-access-token",
 		RefreshToken: "test-refresh-token",
-		TokenType:    "Bearer",
+		TokenType:    testBearerTokenType,
 		Expiry:       time.Now().Add(1 * time.Hour),
 		IDToken:      "test-id-token",
 	}

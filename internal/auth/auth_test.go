@@ -8,6 +8,9 @@ import (
 // testValidToken is a placeholder access token used across test cases.
 const testValidToken = "valid-token"
 
+// testBearerTokenType is the token type used across test cases.
+const testBearerTokenType = "Bearer"
+
 func TestTokenData_IsValid(t *testing.T) {
 	tests := []struct {
 		name     string
