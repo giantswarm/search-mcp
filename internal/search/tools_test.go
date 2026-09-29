@@ -169,7 +169,7 @@ func TestOptionalAuth(t *testing.T) {
 		"rejected forwarded token": {forwarded: verifier,
 			token:    issuer.Token(t, issuer.URL, "other", "alice", time.Hour),
 			wantNote: "the forwarded token was rejected"},
-		"signed in": {authMgr: stubAuthManager{token: "oauth-token"}, wantToken: "oauth-token"},
+		"signed in": {authMgr: stubAuthManager{token: valid}, wantToken: valid},
 		"not signed in": {authMgr: stubAuthManager{err: auth.ErrTokenNotFound},
 			wantNote: "not signed in"},
 		"no intranet access": {wantNote: "no intranet access configured"},
