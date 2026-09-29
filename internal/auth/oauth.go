@@ -82,7 +82,7 @@ func (m *Manager) GetToken(ctx context.Context) (string, error) {
 		return "", m.formatError(err)
 	}
 
-	m.logger.Debug("GetToken returning token", "token", token)
+	m.logger.Debug("GetToken returning token", "token", redactedToken(token))
 	return token, nil
 }
 
@@ -136,8 +136,8 @@ func (m *Manager) HandleCallback(ctx context.Context, code string, state string)
 	}
 
 	m.logger.Debug("received tokens from OAuth provider",
-		"access_token", token.AccessToken,
-		"refresh_token", token.RefreshToken,
+		"access_token", redactedToken(token.AccessToken),
+		"refresh_token", redactedToken(token.RefreshToken),
 		"token_type", token.TokenType,
 		"expiry", token.Expiry)
 
@@ -153,7 +153,7 @@ func (m *Manager) HandleCallback(ctx context.Context, code string, state string)
 	if idToken, ok := token.Extra("id_token").(string); ok {
 		tokenData.IDToken = idToken
 		m.logger.Debug("extracted ID token from OAuth response",
-			"id_token", idToken)
+			"id_token", redactedToken(idToken))
 	} else {
 		m.logger.Debug("no ID token in OAuth response")
 	}

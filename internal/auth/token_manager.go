@@ -59,8 +59,8 @@ func (m *TokenManager) GetToken(ctx context.Context) (string, error) {
 		}
 
 		m.logger.Debug("current token details before refresh",
-			"access_token", m.currentToken.AccessToken,
-			"id_token", m.currentToken.IDToken,
+			"access_token", redactedToken(m.currentToken.AccessToken),
+			"id_token", redactedToken(m.currentToken.IDToken),
 			"has_refresh_token", m.currentToken.RefreshToken != "")
 
 		// Attempt to refresh the token
@@ -80,8 +80,8 @@ func (m *TokenManager) GetToken(ctx context.Context) (string, error) {
 		}
 
 		m.logger.Debug("token refresh successful, received new tokens",
-			"access_token", newTokens.AccessToken,
-			"id_token", newTokens.IDToken,
+			"access_token", redactedToken(newTokens.AccessToken),
+			"id_token", redactedToken(newTokens.IDToken),
 			"new_expiry", newTokens.Expiry,
 			"has_refresh_token", newTokens.RefreshToken != "")
 
@@ -108,8 +108,8 @@ func (m *TokenManager) GetToken(ctx context.Context) (string, error) {
 	}
 
 	m.logger.Debug("returning valid access token",
-		"access_token", m.currentToken.AccessToken,
-		"id_token", m.currentToken.IDToken,
+		"access_token", redactedToken(m.currentToken.AccessToken),
+		"id_token", redactedToken(m.currentToken.IDToken),
 		"expires_at", m.currentToken.Expiry,
 		"time_until_expiry", time.Until(m.currentToken.Expiry))
 
@@ -122,8 +122,8 @@ func (m *TokenManager) StoreTokens(ctx context.Context, tokens *TokenData) error
 	defer m.mu.Unlock()
 
 	m.logger.Debug("storing new tokens",
-		"access_token", tokens.AccessToken,
-		"id_token", tokens.IDToken,
+		"access_token", redactedToken(tokens.AccessToken),
+		"id_token", redactedToken(tokens.IDToken),
 		"has_refresh_token", tokens.RefreshToken != "",
 		"expiry", tokens.Expiry)
 
@@ -178,8 +178,8 @@ func (m *TokenManager) refreshToken(ctx context.Context) (*TokenData, error) {
 	}
 
 	m.logger.Debug("initiating token refresh",
-		"old_access_token", m.currentToken.AccessToken,
-		"refresh_token", m.currentToken.RefreshToken,
+		"old_access_token", redactedToken(m.currentToken.AccessToken),
+		"refresh_token", redactedToken(m.currentToken.RefreshToken),
 		"old_expiry", m.currentToken.Expiry)
 
 	// Create token source from refresh token
@@ -204,8 +204,8 @@ func (m *TokenManager) refreshToken(ctx context.Context) (*TokenData, error) {
 	}
 
 	m.logger.Debug("token source returned new token",
-		"new_access_token", newToken.AccessToken,
-		"new_refresh_token", newToken.RefreshToken,
+		"new_access_token", redactedToken(newToken.AccessToken),
+		"new_refresh_token", redactedToken(newToken.RefreshToken),
 		"new_expiry", newToken.Expiry,
 		"token_type", newToken.TokenType)
 
@@ -221,7 +221,7 @@ func (m *TokenManager) refreshToken(ctx context.Context) (*TokenData, error) {
 	if idToken, ok := newToken.Extra("id_token").(string); ok {
 		tokenData.IDToken = idToken
 		m.logger.Debug("extracted ID token from response",
-			"id_token", idToken)
+			"id_token", redactedToken(idToken))
 	} else {
 		m.logger.Debug("no ID token in refresh response")
 	}
