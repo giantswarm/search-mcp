@@ -279,30 +279,54 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 }
 
 // optionalAuth wraps a handler that serves public content to anyone and also
-// intranet content to an authenticated caller.
+// intranet content to an authenticated caller. Without a token the handler
+// still runs, and its result says why intranet content is left out.
 func optionalAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwarded *auth.ForwardedTokenVerifier) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		if forwarded != nil {
-			token, _ := ctx.Value(forwardedTokenContextKey).(string)
-			if token == "" {
-				return handler(ctx, request)
+		var token, missing string
+		switch {
+		case forwarded != nil:
+			var err error
+			token, err = forwardedToken(ctx, forwarded)
+			switch {
+			case err != nil:
+				missing = fmt.Sprintf("the forwarded token was rejected (%v). Sign in to the MCP gateway again.", err)
+			case token == "":
+				missing = "the request carried no bearer token. Sign in to the MCP gateway, and have it forward your token to this server."
 			}
-			if err := forwarded.Verify(ctx, token); err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v\n\n"+
-					"Sign in to the MCP gateway again.", err)), nil
+		case authMgr != nil:
+			// GetToken, not IsAuthenticated: it refreshes an expired token.
+			var err error
+			token, err = authMgr.GetToken(ctx)
+			if err != nil {
+				missing = fmt.Sprintf("not signed in (%v). Call an intranet tool, such as search_runbook, to sign in.", err)
 			}
-			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
+		default:
+			missing = "this server has no intranet access configured."
 		}
 
-		if authMgr == nil || !authMgr.IsAuthenticated() {
-			return handler(ctx, request)
+		if token != "" {
+			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
 		}
-		token, err := authMgr.GetToken(ctx)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v", err)), nil
+		result, err := handler(ctx, request)
+		if err == nil && result != nil && !result.IsError {
+			result.Content = append(result.Content, mcp.NewTextContent("Intranet results are not included: "+missing))
 		}
-		return handler(context.WithValue(ctx, authTokenContextKey, token), request)
+		return result, err
 	}
+}
+
+// forwardedToken returns the caller's forwarded bearer token once verified,
+// or "" when the request carried none.
+func forwardedToken(ctx context.Context, forwarded *auth.ForwardedTokenVerifier) (string, error) {
+	token, _ := ctx.Value(forwardedTokenContextKey).(string)
+	if token == "" {
+		return "", nil
+	}
+	if err := forwarded.Verify(ctx, token); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // requireAuth wraps a handler to require authentication
@@ -311,17 +335,17 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 		// Behind an MCP gateway: the caller's own forwarded token, used for
 		// this request only.
 		if forwarded != nil {
-			token, _ := ctx.Value(forwardedTokenContextKey).(string)
+			token, err := forwardedToken(ctx, forwarded)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v\n\n"+
+					"Sign in to the MCP gateway again.", err)), nil
+			}
 			if token == "" {
 				return mcp.NewToolResultError(
 					"❌ Authentication required\n\n" +
 						"This server reaches the intranet as the caller, with the bearer token " +
 						"the MCP gateway forwards. The request carried none: sign in to the gateway, " +
 						"and have it forward your token to this server."), nil
-			}
-			if err := forwarded.Verify(ctx, token); err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v\n\n"+
-					"Sign in to the MCP gateway again.", err)), nil
 			}
 			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
 		}

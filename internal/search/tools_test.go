@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,52 +143,71 @@ func TestRequireAuth_ForwardedTokens(t *testing.T) {
 	}
 }
 
-func TestOptionalAuth_ForwardedTokens(t *testing.T) {
+// stubAuthManager is an OAUTH_* login whose GetToken returns token or err.
+type stubAuthManager struct {
+	auth.AuthManager
+	token string
+	err   error
+}
+
+func (m stubAuthManager) GetToken(context.Context) (string, error) { return m.token, m.err }
+
+func TestOptionalAuth(t *testing.T) {
 	verifier, issuer := forwardedVerifier(t)
-	var reached bool
-	var seen string
-	handler := optionalAuth(func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		reached = true
-		seen, _ = ctx.Value(authTokenContextKey).(string)
-		return mcp.NewToolResultText("ok"), nil
-	}, nil, verifier)
+	valid := issuer.Token(t, issuer.URL, "searchmcp", "alice", time.Hour)
 
-	call := func(token string) *mcp.CallToolResult {
-		t.Helper()
-		reached, seen = false, ""
-		ctx := context.Background()
-		if token != "" {
-			ctx = context.WithValue(ctx, forwardedTokenContextKey, token)
-		}
-		result, err := handler(ctx, mcp.CallToolRequest{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return result
+	tests := map[string]struct {
+		authMgr   auth.AuthManager
+		forwarded *auth.ForwardedTokenVerifier
+		token     string
+		wantToken string
+		wantNote  string
+	}{
+		"forwarded token": {forwarded: verifier, token: valid, wantToken: valid},
+		"no forwarded token": {forwarded: verifier,
+			wantNote: "the request carried no bearer token"},
+		"rejected forwarded token": {forwarded: verifier,
+			token:    issuer.Token(t, issuer.URL, "other", "alice", time.Hour),
+			wantNote: "the forwarded token was rejected"},
+		"signed in": {authMgr: stubAuthManager{token: "oauth-token"}, wantToken: "oauth-token"},
+		"not signed in": {authMgr: stubAuthManager{err: auth.ErrTokenNotFound},
+			wantNote: "not signed in"},
+		"no intranet access": {wantNote: "no intranet access configured"},
 	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var seen string
+			handler := optionalAuth(func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				seen, _ = ctx.Value(authTokenContextKey).(string)
+				return mcp.NewToolResultText("public results"), nil
+			}, tc.authMgr, tc.forwarded)
 
-	// A caller with a valid token searches with it.
-	token := issuer.Token(t, issuer.URL, "searchmcp", "alice", time.Hour)
-	if result := call(token); result.IsError {
-		t.Fatalf("unexpected error result %v", result.Content)
-	}
-	if seen != token {
-		t.Error("handler did not get the caller's token")
-	}
+			ctx := context.Background()
+			if tc.token != "" {
+				ctx = context.WithValue(ctx, forwardedTokenContextKey, tc.token)
+			}
+			result, err := handler(ctx, mcp.CallToolRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// A caller without a token still searches public content.
-	if result := call(""); result.IsError {
-		t.Fatalf("no token: unexpected error result %v", result.Content)
-	}
-	if !reached || seen != "" {
-		t.Errorf("no token: reached %v, token %q", reached, seen)
-	}
-
-	// A token that fails verification is reported, not silently dropped.
-	if result := call(issuer.Token(t, issuer.URL, "other", "alice", time.Hour)); !result.IsError {
-		t.Error("wrong audience: want an error result")
-	}
-	if reached {
-		t.Error("wrong audience: handler was reached")
+			// A caller without a usable token still gets the public results.
+			if result.IsError {
+				t.Fatalf("unexpected error result %v", result.Content)
+			}
+			if seen != tc.wantToken {
+				t.Errorf("handler got token %q, want %q", seen, tc.wantToken)
+			}
+			var note string
+			if len(result.Content) > 1 {
+				note = result.Content[len(result.Content)-1].(mcp.TextContent).Text
+			}
+			if tc.wantNote == "" && note != "" {
+				t.Errorf("unexpected note %q", note)
+			}
+			if !strings.Contains(note, tc.wantNote) {
+				t.Errorf("note %q does not say %q", note, tc.wantNote)
+			}
+		})
 	}
 }
