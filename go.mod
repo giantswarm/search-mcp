@@ -36,6 +36,6 @@ require (
 )
 
 // Pin transitive modules flagged by the OSS Index scan (nancy) in CI.
-replace golang.org/x/mod => golang.org/x/mod v0.41.0
+replace golang.org/x/mod => golang.org/x/mod v0.42.0
 
 replace golang.org/x/crypto => golang.org/x/crypto v0.58.0
