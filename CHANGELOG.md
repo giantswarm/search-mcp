@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The MCP endpoint refuses a request body larger than 1 MiB before mcp-go reads it whole (CVE-2026-108859, no fixed mcp-go release yet; the scan ignores it until 2026-11-12) ([#](https://github.com/giantswarm/search-mcp/issues/)).
 - `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
 - The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.
 
