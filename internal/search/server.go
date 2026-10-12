@@ -205,19 +205,11 @@ func (s *Server) startStdio(ctx context.Context) error {
 func (s *Server) startHTTP(ctx context.Context) error {
 	s.logger.Info("starting MCP server", "transport", transportStreamableHTTP, "addr", s.config.HTTPAddr, "endpoint", s.config.HTTPEndpoint)
 
-	// Create StreamableHTTPServer
-	mcpHTTPServer := s.streamableHTTPServer()
-
 	// Create custom mux that combines MCP endpoints and OAuth routes
 	mux := http.NewServeMux()
 
 	// Register MCP endpoint with connection logging and metrics
-	mux.Handle(s.config.HTTPEndpoint, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.logger.Debug("new HTTP streamable connection", "method", r.Method, "remote", r.RemoteAddr)
-		s.metrics.RecordSSEConnection()
-		defer s.metrics.RecordSSEDisconnection()
-		mcpHTTPServer.ServeHTTP(w, r)
-	}))
+	mux.Handle(s.config.HTTPEndpoint, s.mcpHandler())
 
 	// Register metrics endpoint
 	if handler := s.metrics.Handler(); handler != nil {
@@ -289,6 +281,22 @@ func (s *Server) streamableHTTPServer() *server.StreamableHTTPServer {
 		options = append(options, server.WithHTTPContextFunc(withForwardedToken))
 	}
 	return server.NewStreamableHTTPServer(s.mcpServer, options...)
+}
+
+// maxMCPBodyBytes bounds an MCP request body. mcp-go reads a POST body whole
+// before validating it (CVE-2026-108859); the bound keeps that read small.
+const maxMCPBodyBytes = 1 << 20
+
+// mcpHandler serves the MCP endpoint with connection logging and metrics,
+// every request body bounded at maxMCPBodyBytes.
+func (s *Server) mcpHandler() http.Handler {
+	mcpHTTPServer := s.streamableHTTPServer()
+	return http.MaxBytesHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.logger.Debug("new HTTP streamable connection", "method", r.Method, "remote", r.RemoteAddr)
+		s.metrics.RecordSSEConnection()
+		defer s.metrics.RecordSSEDisconnection()
+		mcpHTTPServer.ServeHTTP(w, r)
+	}), maxMCPBodyBytes)
 }
 
 // registerOAuthRoutes registers OAuth authentication routes
