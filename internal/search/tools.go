@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/giantswarm/mcp-toolkit/tooldesc"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
@@ -41,9 +42,10 @@ const (
 
 // Parameter descriptions shared by the search tools.
 const (
-	descSearchTerm      = "The search term (required). Results are ranked by similarity to the search term. Use 'require_all_terms' to restrict results to only pages containing every word."
-	descStartIndex      = "The start index of the search results (optional, defaults to 0)"
-	descRequireAllTerms = "If true, only return documents that contain ALL search terms (strict AND matching). Default is false, which finds documents similar to the query and ranks by relevance — best for longer, multi-term queries."
+	descSearchTerm      = "What to search for. Results are ranked by similarity; require_all_terms keeps only pages with every word."
+	descStartIndex      = "Offset of the first result, to page through results."
+	descSize            = "Number of results to return."
+	descRequireAllTerms = "Only pages containing every word (strict AND). Leave false for longer queries ranked by relevance."
 )
 
 // contextKey is a private type for context values set by this package,
@@ -82,7 +84,7 @@ func searchInputSchema(extraProperties map[string]interface{}) mcp.ToolInputSche
 		},
 		paramSize: map[string]interface{}{
 			schemaKeyType:        schemaTypeInteger,
-			schemaKeyDescription: fmt.Sprintf("The size of the search results (optional, defaults to %d)", itemsPerPageDefault),
+			schemaKeyDescription: descSize,
 			schemaKeyDefault:     itemsPerPageDefault,
 		},
 		paramRequireAllTerms: map[string]interface{}{
@@ -150,6 +152,18 @@ func sanitizeValue(v any) any {
 	}
 }
 
+// newTool builds a read-only tool: every tool of this server only reads.
+func newTool(name string, describe mcp.ToolOption, schema mcp.ToolInputSchema) mcp.Tool {
+	tool := mcp.NewTool(name, describe, mcp.WithToolAnnotation(mcp.ToolAnnotation{
+		ReadOnlyHint:    mcp.ToBoolPtr(true),
+		DestructiveHint: mcp.ToBoolPtr(false),
+		IdempotentHint:  mcp.ToBoolPtr(true),
+		OpenWorldHint:   mcp.ToBoolPtr(false),
+	}))
+	tool.InputSchema = schema
+	return tool
+}
+
 // RegisterTools registers all search tools with the MCP server
 func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager, forwarded *auth.ForwardedTokenVerifier, transport string, logger *slog.Logger, metricsCollector metrics.Collector) {
 	// withLogging wraps a handler to log tool invocations and record metrics
@@ -165,116 +179,66 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	// how to configure it.
 	intranet := authMgr != nil || forwarded != nil || transport == transportStdio
 
-	// Register search tool
-	s.AddTool(mcp.Tool{
-		Name:        "search",
-		Description: "Search public and internal Giant Swarm documentation. To paginate through results, use a non-zero start_index.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
+	s.AddTool(newTool("search", tooldesc.Describe(
+		"Search every Giant Swarm source, intranet included; for the public product documentation only, use search_docs.",
+		"Without sign-in, intranet results are left out and the answer says why.",
+	), searchInputSchema(map[string]interface{}{
+		"type_filter": map[string]interface{}{
+			schemaKeyType:        schemaTypeString,
+			schemaKeyDescription: "Restrict to one source type, e.g. \"Intranet\", \"Documentation\" or \"Blog\".",
+			schemaKeyDefault:     "",
 		},
-		InputSchema: searchInputSchema(map[string]interface{}{
-			"type_filter": map[string]interface{}{
-				schemaKeyType:        schemaTypeString,
-				schemaKeyDescription: "To restrict the results to only one source type, e.g. \"Intranet\" (optional, defaults to \"\")",
-				schemaKeyDefault:     "",
+		"breadcrumb_filter": map[string]interface{}{
+			schemaKeyType:        "array",
+			schemaKeyDescription: "Restrict to one section by its path, e.g. [\"docs\", \"support-and-ops\"].",
+			"items": map[string]interface{}{
+				schemaKeyType: schemaTypeString,
 			},
-			"breadcrumb_filter": map[string]interface{}{
-				schemaKeyType:        "array",
-				schemaKeyDescription: "To restrict the results to a specific section, e.g. [\"docs\", \"support-and-ops\"] (optional, defaults to [])",
-				"items": map[string]interface{}{
-					schemaKeyType: schemaTypeString,
-				},
-				schemaKeyDefault: []interface{}{},
-			},
-		}),
-	}, withLogging("search", optionalAuth(searchHandler(client), authMgr, forwarded)))
+			schemaKeyDefault: []interface{}{},
+		},
+	})), withLogging("search", optionalAuth(searchHandler(client), authMgr, forwarded)))
 
-	// Register search_docs tool
-	s.AddTool(mcp.Tool{
-		Name:        "search_docs",
-		Description: "Search public documentation. To paginate through results, use a non-zero start_index.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: searchInputSchema(nil),
-	}, withLogging("search_docs", searchDocsHandler(client)))
+	s.AddTool(newTool("search_docs", tooldesc.Describe(
+		"Search the public Giant Swarm documentation at docs.giantswarm.io; to include the intranet and blog, use search.",
+		"",
+	), searchInputSchema(nil)), withLogging("search_docs", searchDocsHandler(client)))
 
 	if intranet {
-		// Register search_runbook tool
-		s.AddTool(mcp.Tool{
-			Name:        "search_runbook",
-			Description: "Search for DevOps runbooks in the Giant Swarm intranet. Requires authentication.",
-			Annotations: mcp.ToolAnnotation{
-				ReadOnlyHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint: mcp.ToBoolPtr(false),
-			},
-			InputSchema: searchInputSchema(nil),
-		}, withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, forwarded, transport)))
+		s.AddTool(newTool("search_runbook", tooldesc.Describe(
+			"Find an operations runbook in the Giant Swarm intranet; for a legacy ops recipe, use search_ops_recipe.",
+			"Requires sign-in.",
+		), searchInputSchema(nil)), withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, forwarded, transport)))
+
+		s.AddTool(newTool("search_ops_recipe", tooldesc.Describe(
+			"Find a legacy ops recipe in the Giant Swarm intranet; current runbooks are found with search_runbook.",
+			"Requires sign-in.",
+		), searchInputSchema(nil)), withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, forwarded, transport)))
 	}
 
-	if intranet {
-		// Register search_ops_recipe tool
-		s.AddTool(mcp.Tool{
-			Name:        "search_ops_recipe",
-			Description: "Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. Requires authentication.",
-			Annotations: mcp.ToolAnnotation{
-				ReadOnlyHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint: mcp.ToBoolPtr(false),
-			},
-			InputSchema: searchInputSchema(nil),
-		}, withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, forwarded, transport)))
-	}
+	s.AddTool(newTool("read_docs_url", tooldesc.Describe(
+		"Read one documentation page from docs.giantswarm.io as Markdown; read_docs_index lists every page.",
+		"",
+	), urlInputSchema("A page on docs.giantswarm.io, e.g. https://docs.giantswarm.io/some-page/")), withLogging("read_docs_url", readDocsURLHandler(client)))
 
-	// Register read_docs_url tool
-	s.AddTool(mcp.Tool{
-		Name:        "read_docs_url",
-		Description: "Returns content from a single URL of the Giant Swarm documentation website docs.giantswarm.io (public, no authentication required), in Markdown format.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: urlInputSchema("The URL to fetch content from, e.g. https://docs.giantswarm.io/some-page/"),
-	}, withLogging("read_docs_url", readDocsURLHandler(client)))
+	s.AddTool(newTool("read_docs_index", tooldesc.Describe(
+		"List every docs.giantswarm.io page with its title, description and link, as Markdown.",
+		"",
+	), mcp.ToolInputSchema{
+		Type:       schemaTypeObject,
+		Properties: map[string]interface{}{},
+		Required:   []string{},
+	}), withLogging("read_docs_index", readDocsIndexHandler(client)))
 
-	// Register read_docs_index tool
-	s.AddTool(mcp.Tool{
-		Name:        "read_docs_index",
-		Description: "Returns an index of all documentation pages with title, description, and link, in Markdown format.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: mcp.ToolInputSchema{
-			Type:       schemaTypeObject,
-			Properties: map[string]interface{}{},
-			Required:   []string{},
-		},
-	}, withLogging("read_docs_index", readDocsIndexHandler(client)))
-
-	// Register read_handbook_url tool
-	s.AddTool(mcp.Tool{
-		Name:        "read_handbook_url",
-		Description: "Returns content from a single URL on the Giant Swarm handbook (public, no authentication required), in Markdown format.",
-		Annotations: mcp.ToolAnnotation{
-			ReadOnlyHint:  mcp.ToBoolPtr(true),
-			OpenWorldHint: mcp.ToBoolPtr(false),
-		},
-		InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://handbook.giantswarm.io/docs/some-page/)"),
-	}, withLogging("read_handbook_url", readHandbookURLHandler(client)))
+	s.AddTool(newTool("read_handbook_url", tooldesc.Describe(
+		"Read one page of the public Giant Swarm handbook (handbook.giantswarm.io) as Markdown.",
+		"",
+	), urlInputSchema("A page on handbook.giantswarm.io, e.g. https://handbook.giantswarm.io/docs/some-page/")), withLogging("read_handbook_url", readHandbookURLHandler(client)))
 
 	if intranet {
-		// Register read_intranet_url tool
-		s.AddTool(mcp.Tool{
-			Name:        "read_intranet_url",
-			Description: "Returns content from a single URL on the Giant Swarm intranet, in Markdown format. Requires authentication.",
-			Annotations: mcp.ToolAnnotation{
-				ReadOnlyHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint: mcp.ToBoolPtr(false),
-			},
-			InputSchema: urlInputSchema("The URL to fetch content from (e.g., https://intranet.giantswarm.io/docs/some-page/)"),
-		}, withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, forwarded, transport)))
+		s.AddTool(newTool("read_intranet_url", tooldesc.Describe(
+			"Fetch one page of the Giant Swarm intranet (intranet.giantswarm.io) as Markdown.",
+			"Requires sign-in.",
+		), urlInputSchema("A page on intranet.giantswarm.io, e.g. https://intranet.giantswarm.io/docs/some-page/")), withLogging("read_intranet_url", requireAuth(readIntranetURLHandler(client), authMgr, forwarded, transport)))
 	}
 }
 
