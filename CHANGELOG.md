@@ -7,15 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6-rc.13] - 2026-10-12
+
 ### Fixed
 
 - The MCP endpoint refuses a request body larger than 1 MiB before mcp-go reads it whole (CVE-2026-108859, no fixed mcp-go release yet; the scan ignores it until 2026-11-12) ([#](https://github.com/giantswarm/search-mcp/issues/)).
+
+## [0.5.4] - 2026-09-29
+
+### Fixed
+
 - `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
+
+## [0.5.1] - 2026-09-29
+
+### Fixed
+
 - The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.
+
+## [0.5.0] - 2026-09-28
 
 ### Added
 
 - Over streamable HTTP, `FORWARDED_TOKEN_ISSUER_URL` and `FORWARDED_TOKEN_AUDIENCE` make a shared server reach the intranet as each caller: it takes the bearer token an MCP gateway forwards with the request, verifies its signature, issuer, audience and expiry, and uses it for that request only, never storing it. The intranet tools are advertised in this mode; a call without a valid token gets an authentication error. Stdio and the `OAUTH_*` login are unchanged.
+
+## [0.4.0] - 2026-09-26
 
 ### Changed
 
@@ -24,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Helm chart: installs with its default values. The route is off by default (`route.enabled: false`), `route.hostnames` may be empty while it is off, and an enabled route without a hostname fails the render with a clear message instead of matching every host on the Gateway. Before, the schema refused the defaults and every in-cluster deployment without a route.
+
+## [0.3.37] - 2026-09-23
+
+### Fixed
+
 - Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
 
 ## [0.3.0] - 2026-04-17
@@ -71,7 +92,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version
 
-[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/giantswarm/search-mcp/compare/v0.5.6-rc.13...HEAD
+[0.5.6-rc.13]: https://github.com/giantswarm/search-mcp/compare/v0.5.4...v0.5.6-rc.13
+[0.5.4]: https://github.com/giantswarm/search-mcp/compare/v0.5.1...v0.5.4
+[0.5.1]: https://github.com/giantswarm/search-mcp/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/giantswarm/search-mcp/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/giantswarm/search-mcp/compare/v0.3.37...v0.4.0
+[0.3.37]: https://github.com/giantswarm/search-mcp/compare/v0.3.0...v0.3.37
 [0.3.0]: https://github.com/giantswarm/search-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/giantswarm/search-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/giantswarm/search-mcp/compare/v0.0.1...v0.1.0
