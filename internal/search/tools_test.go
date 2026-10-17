@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/giantswarm/mcp-toolkit/tooldesc"
+	"github.com/giantswarm/mcp-toolkit/tooldesc/tooldesctest"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
@@ -20,12 +22,29 @@ import (
 
 var intranetTools = []string{"search_runbook", "search_ops_recipe", "read_intranet_url"}
 
-func registeredTools(t *testing.T, transport string) map[string]*server.ServerTool {
-	t.Helper()
+func newTestServer(transport string) *server.MCPServer {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	s := server.NewMCPServer("test", "0.0.0", server.WithToolCapabilities(false))
 	RegisterTools(s, NewClient(logger), nil, nil, transport, logger, metrics.NewNoopCollector())
-	return s.ListTools()
+	return s
+}
+
+func registeredTools(t *testing.T, transport string) map[string]*server.ServerTool {
+	t.Helper()
+	return newTestServer(transport).ListTools()
+}
+
+// Over stdio every tool is registered, the intranet ones included.
+func TestToolDescriptions(t *testing.T) {
+	if err := tooldesc.CheckServer(newTestServer(transportStdio), tooldesc.DefaultBudget); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestToolsDocIsCurrent(t *testing.T) {
+	tooldesctest.AssertServerDoc(t, newTestServer(transportStdio),
+		"# Tools\n\nGenerated from the registered tools: run `TOOLS_DOC_UPDATE=1 go test ./internal/search/ -run TestToolsDocIsCurrent` to update.",
+		"../../docs/tools.md")
 }
 
 func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {

@@ -6,6 +6,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/giantswarm/mcp-toolkit v0.4.0
 	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/mark3labs/mcp-go v1.3.0
 	github.com/prometheus/client_golang v1.25.0

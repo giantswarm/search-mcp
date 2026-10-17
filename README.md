@@ -96,40 +96,20 @@ search-mcp version
 
 ### Available Tools
 
-The server provides these tools to AI assistants:
+The server provides these tools to AI assistants; [docs/tools.md](docs/tools.md) has every description and input schema exactly as a model reads them.
 
-#### `search(term, start_index, size, type_filter, breadcrumb_filter)`
+| Tool | Purpose |
+|---|---|
+| `search` | Search every source, intranet included |
+| `search_docs` | Search the public documentation at docs.giantswarm.io |
+| `search_runbook` | Find an operations runbook in the intranet. **Requires authentication.** |
+| `search_ops_recipe` | Find a legacy ops recipe in the intranet. **Requires authentication.** |
+| `read_docs_index` | List every docs.giantswarm.io page |
+| `read_docs_url` | Read one docs.giantswarm.io page |
+| `read_handbook_url` | Read one handbook.giantswarm.io page |
+| `read_intranet_url` | Read one intranet.giantswarm.io page. **Requires authentication.** |
 
-Search Giant Swarm documentation (public docs from docs.giantswarm.io).
-
-**Parameters:**
-- `term` (required): Search term
-- `start_index` (optional): Starting index for pagination (default: 0)
-- `size` (optional): Number of results to return (default: 30)
-- `type_filter` (optional): Filter by source type
-- `breadcrumb_filter` (optional): Filter by section path
-
-#### `search_runbook(term, start_index, size)`
-
-Search for DevOps runbooks in the Giant Swarm intranet. **Requires authentication.**
-
-#### `search_ops_recipe(term, start_index, size)`
-
-Search for Ops Recipes (legacy runbooks) in the Giant Swarm intranet. **Requires authentication.**
-
-#### `read_handbook_url(url)`
-
-Read content from Giant Swarm handbook (public, no authentication required).
-
-**Parameters:**
-- `url` (required): URL from https://handbook.giantswarm.io/
-
-#### `read_intranet_url(url)`
-
-Read content from Giant Swarm intranet. **Requires authentication.**
-
-**Parameters:**
-- `url` (required): URL from https://intranet.giantswarm.io/
+Tool descriptions lead with a summary line of at most 120 runes, built with `tooldesc.Describe` from [mcp-toolkit](https://github.com/giantswarm/mcp-toolkit); `TestToolDescriptions` holds them to its budgets and `TestToolsDocIsCurrent` keeps `docs/tools.md` current (`TOOLS_DOC_UPDATE=1` rewrites it).
 
 ## Authentication
 
