@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -22,7 +23,7 @@ import (
 	"github.com/giantswarm/search-mcp/internal/metrics"
 )
 
-var intranetTools = []string{"search_runbook", "search_ops_recipe", "read_intranet_url"}
+var intranetTools = []string{"search_runbook", "read_intranet_url"}
 
 func newTestServer(transport string) *server.MCPServer {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -31,13 +32,13 @@ func newTestServer(transport string) *server.MCPServer {
 	return s
 }
 
-func registeredTools(t *testing.T, transport string) map[string]*server.ServerTool {
-	t.Helper()
-	return newTestServer(transport).ListTools()
-}
-
-// stdioServer registers every tool, the intranet ones included.
-var stdioServer = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStdio) })
+// The servers the tests read from, built once per transport: over stdio every
+// tool is registered, the intranet ones included; over HTTP without OAuth only
+// the public ones.
+var (
+	stdioServer = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStdio) })
+	httpServer  = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStreamableHTTP) })
+)
 
 func TestToolDescriptions(t *testing.T) {
 	if err := tooldesc.CheckServer(stdioServer(), tooldesc.DefaultBudget); err != nil {
@@ -47,21 +48,27 @@ func TestToolDescriptions(t *testing.T) {
 
 func TestToolsDocIsCurrent(t *testing.T) {
 	var public []string
-	for name := range registeredTools(t, transportStreamableHTTP) {
+	for name := range httpServer().ListTools() {
 		public = append(public, name)
 	}
 	sort.Strings(public)
 	tooldesctest.AssertServerDoc(t, stdioServer(),
 		"# Tools\n\nGenerated from the registered tools (`make tools-doc`). This is the stdio set; over HTTP without OAuth or forwarded tokens "+
-			"only these are offered: `"+strings.Join(public, "`, `")+"`.",
+			"only these are offered: `"+strings.Join(public, "`, `")+"`, and `search`'s description leaves out the intranet.",
 		"../../docs/tools.md")
 }
 
 func TestToolsAreReadOnly(t *testing.T) {
 	for name, st := range stdioServer().ListTools() {
 		a := st.Tool.Annotations
-		if a.ReadOnlyHint == nil || !*a.ReadOnlyHint || a.DestructiveHint == nil || *a.DestructiveHint || a.IdempotentHint == nil || !*a.IdempotentHint {
-			t.Errorf("%s must be annotated read-only, not destructive and idempotent", name)
+		if a.ReadOnlyHint == nil || !*a.ReadOnlyHint {
+			t.Errorf("%s is not annotated read-only", name)
+		}
+		if a.DestructiveHint == nil || *a.DestructiveHint {
+			t.Errorf("%s is annotated destructive", name)
+		}
+		if a.IdempotentHint == nil || !*a.IdempotentHint {
+			t.Errorf("%s is not annotated idempotent", name)
 		}
 	}
 }
@@ -69,8 +76,19 @@ func TestToolsAreReadOnly(t *testing.T) {
 // TestSearchTermsAreNotStrictByDefault: agents send many terms, and strict AND
 // matching left out relevant results (#111).
 func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
-	for _, name := range []string{"search", "search_docs", "search_runbook", "search_ops_recipe"} {
-		props := stdioServer().GetTool(name).Tool.InputSchema.Properties
+	const why = "agents send many terms, and strict AND matching left out relevant results"
+	if q := NewClient(slog.New(slog.NewTextHandler(io.Discard, nil))).buildQuery(SearchRequest{Term: "two terms"}); !strings.Contains(fmt.Sprint(q.Query), "multi_match") {
+		t.Errorf("a search without require_all_terms is not ranked by similarity (#111: %s)", why)
+	}
+	for _, name := range []string{"search", "search_docs", "search_runbook"} {
+		tool := stdioServer().GetTool(name)
+		if tool == nil {
+			t.Fatalf("%s not registered", name)
+		}
+		props := tool.Tool.InputSchema.Properties
+		if prop, ok := props[paramRequireAllTerms].(map[string]interface{}); !ok || prop[schemaKeyDefault] != false {
+			t.Errorf("%s.%s must default to false (#111: %s)", name, paramRequireAllTerms, why)
+		}
 		for param, fact := range map[string]string{paramTerm: "every word", paramRequireAllTerms: "longer queries"} {
 			prop, ok := props[param].(map[string]interface{})
 			if !ok {
@@ -78,14 +96,14 @@ func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
 			}
 			d, _ := prop[schemaKeyDescription].(string)
 			if !strings.Contains(d, fact) {
-				t.Errorf("%s.%s lost %q from #111: agents send many terms, and strict AND matching left out relevant results", name, param, fact)
+				t.Errorf("%s.%s lost %q from #111: %s", name, param, fact, why)
 			}
 		}
 	}
 }
 
 func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {
-	tools := registeredTools(t, transportStreamableHTTP)
+	tools := httpServer().ListTools()
 	for _, name := range intranetTools {
 		if _, ok := tools[name]; ok {
 			t.Errorf("tool %q is advertised over HTTP without OAuth", name)
@@ -99,7 +117,7 @@ func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {
 }
 
 func TestRegisterTools_StdioWithoutOAuthKeepsIntranetTools(t *testing.T) {
-	tools := registeredTools(t, transportStdio)
+	tools := stdioServer().ListTools()
 	for _, name := range intranetTools {
 		if _, ok := tools[name]; !ok {
 			t.Errorf("tool %q is missing over stdio", name)

@@ -19,13 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources and that the intranet needs sign-in, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `type_filter` names its exact values, and `breadcrumb_filter` says a path starts at the top level, as a result's breadcrumb shows it; `read_docs_index` lists the documentation pages without release notes, in one large answer; `search_ops_recipe` says it is retired and finds nothing, since its section is gone. Tests hold every tool to read-only annotations and keep the #111 search-term facts; `make tools-doc` regenerates `docs/tools.md`.
+- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources and that the intranet needs sign-in, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `search` mentions the intranet only where the server can reach it, and says how to reach release notes and blog posts, which rank low (`breadcrumb_filter ["changes"]`, `type_filter "Blog"`); `type_filter` names its exact values, and `breadcrumb_filter` takes one element per segment of a result's breadcrumb; `read_docs_index` lists the documentation pages without release notes, in one large answer. Tests hold every tool to read-only annotations and keep #111's similarity ranking as the default; `make tools-doc` regenerates `docs/tools.md`.
 - Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
 
 ### Fixed
 
 - Helm chart: installs with its default values. The route is off by default (`route.enabled: false`), `route.hostnames` may be empty while it is off, and an enabled route without a hostname fails the render with a clear message instead of matching every host on the Gateway. Before, the schema refused the defaults and every in-cluster deployment without a route.
 - Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
+
+### Removed
+
+- `search_ops_recipe`: the intranet's ops-recipes section is gone (the recipes moved to runbooks), so it found nothing; search runbooks with `search_runbook` ([#233](https://github.com/giantswarm/search-mcp/issues/233)).
 
 ## [0.3.0] - 2026-04-17
 

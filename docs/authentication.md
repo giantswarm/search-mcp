@@ -4,7 +4,7 @@ This guide explains how authentication works in the Giant Swarm Search MCP Serve
 
 ## Overview
 
-The MCP server uses OAuth 2.1 for authentication with Giant Swarm's Dex identity provider. Authentication is required only for accessing internal resources (intranet, runbooks, ops recipes). Public documentation tools work without authentication.
+The MCP server uses OAuth 2.1 for authentication with Giant Swarm's Dex identity provider. Authentication is required only for accessing internal resources (intranet, runbooks). Public documentation tools work without authentication.
 
 ## Transport Modes
 
@@ -172,14 +172,13 @@ Tokens are automatically refreshed when they approach expiration:
 
 ### Public Tools (No Auth Required)
 
-- `search` - Search public documentation
+- `search` - Search docs, release notes, handbook and blog posts; with sign-in also the intranet
 - `read_handbook_url` - Read public handbook pages
 
 ### Intranet Tools (Auth Required)
 
 - `read_intranet_url` - Read intranet pages
 - `search_runbook` - Search DevOps runbooks
-- `search_ops_recipe` - Search ops recipes
 
 ## Troubleshooting
 
