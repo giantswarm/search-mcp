@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources and that the intranet needs sign-in, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `type_filter` and `breadcrumb_filter` say their exact values and that a path starts at the top; `read_docs_index` lists the documentation pages without release notes, about 60 kB in one answer; `search_ops_recipe` says its section is legacy. Tests hold every tool to read-only annotations and keep the #111 search-term facts; `make tools-doc` regenerates `docs/tools.md`.
+- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources and that the intranet needs sign-in, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `type_filter` names its exact values, and `breadcrumb_filter` says a path starts at the top level, as a result's breadcrumb shows it; `read_docs_index` lists the documentation pages without release notes, in one large answer; `search_ops_recipe` says it is retired and finds nothing, since its section is gone. Tests hold every tool to read-only annotations and keep the #111 search-term facts; `make tools-doc` regenerates `docs/tools.md`.
 - Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
 
 ### Fixed

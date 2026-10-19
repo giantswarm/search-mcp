@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -45,9 +46,14 @@ func TestToolDescriptions(t *testing.T) {
 }
 
 func TestToolsDocIsCurrent(t *testing.T) {
+	var public []string
+	for name := range registeredTools(t, transportStreamableHTTP) {
+		public = append(public, name)
+	}
+	sort.Strings(public)
 	tooldesctest.AssertServerDoc(t, stdioServer(),
 		"# Tools\n\nGenerated from the registered tools (`make tools-doc`). This is the stdio set; over HTTP without OAuth or forwarded tokens "+
-			"only `search`, `search_docs`, `read_docs_url`, `read_docs_index` and `read_handbook_url` are offered.",
+			"only these are offered: `"+strings.Join(public, "`, `")+"`.",
 		"../../docs/tools.md")
 }
 
@@ -66,7 +72,11 @@ func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
 	for _, name := range []string{"search", "search_docs", "search_runbook", "search_ops_recipe"} {
 		props := stdioServer().GetTool(name).Tool.InputSchema.Properties
 		for param, fact := range map[string]string{paramTerm: "every word", paramRequireAllTerms: "longer queries"} {
-			d, _ := props[param].(map[string]interface{})[schemaKeyDescription].(string)
+			prop, ok := props[param].(map[string]interface{})
+			if !ok {
+				t.Fatalf("%s has no parameter %s", name, param)
+			}
+			d, _ := prop[schemaKeyDescription].(string)
 			if !strings.Contains(d, fact) {
 				t.Errorf("%s.%s lost %q from #111: agents send many terms, and strict AND matching left out relevant results", name, param, fact)
 			}

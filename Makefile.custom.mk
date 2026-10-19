@@ -29,7 +29,7 @@ test: ## Run tests
 
 .PHONY: tools-doc
 tools-doc: ## Regenerate docs/tools.md from the registered tools
-	TOOLS_DOC_UPDATE=1 go test ./internal/search/ -run TestToolsDocIsCurrent
+	TOOLS_DOC_UPDATE=1 go test -count=1 ./internal/search/ -run TestToolsDocIsCurrent
 
 .PHONY: test-coverage
 test-coverage: test ## Run tests with coverage report
