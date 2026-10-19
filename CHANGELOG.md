@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The browser pages of the OAuth login and the device flow carry the Giant Swarm design, from [pagekit](https://github.com/giantswarm/pagekit): the logo, light and dark mode, and no external requests. Errors that were plain text (a failed `/oauth/login` or `/callback`) are pages too, and they no longer show the internal error, which stays in the log. The device-code entry form is unchanged for now.
 - Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
 
 ### Fixed
