@@ -100,16 +100,16 @@ The server provides these tools to AI assistants; [docs/tools.md](docs/tools.md)
 
 | Tool | Purpose |
 |---|---|
-| `search` | Search every source, intranet included |
+| `search` | Search docs, release notes, handbook, blog posts and, when signed in, the intranet |
 | `search_docs` | Search the public documentation at docs.giantswarm.io |
 | `search_runbook` | Find an operations runbook in the intranet. **Requires authentication.** |
-| `search_ops_recipe` | Find a legacy ops recipe in the intranet. **Requires authentication.** |
-| `read_docs_index` | List every docs.giantswarm.io page |
+| `search_ops_recipe` | Search the intranet's legacy ops-recipes section; the recipes moved to runbooks. **Requires authentication.** |
+| `read_docs_index` | List the docs.giantswarm.io pages (llms.txt, no release notes) |
 | `read_docs_url` | Read one docs.giantswarm.io page |
 | `read_handbook_url` | Read one handbook.giantswarm.io page |
 | `read_intranet_url` | Read one intranet.giantswarm.io page. **Requires authentication.** |
 
-Tool descriptions lead with a summary line of at most 120 runes, built with `tooldesc.Describe` from [mcp-toolkit](https://github.com/giantswarm/mcp-toolkit); `TestToolDescriptions` holds them to its budgets and `TestToolsDocIsCurrent` keeps `docs/tools.md` current (`TOOLS_DOC_UPDATE=1` rewrites it).
+Tool descriptions lead with a summary line of at most 120 runes, built with `tooldesc.Describe` from [mcp-toolkit](https://github.com/giantswarm/mcp-toolkit); `TestToolDescriptions` holds them to its budgets and `TestToolsDocIsCurrent` keeps `docs/tools.md` current (`make tools-doc` rewrites it).
 
 ## Authentication
 

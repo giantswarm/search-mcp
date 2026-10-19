@@ -180,17 +180,18 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	intranet := authMgr != nil || forwarded != nil || transport == transportStdio
 
 	s.AddTool(newTool("search", tooldesc.Describe(
-		"Search every Giant Swarm source, intranet included; for the public product documentation only, use search_docs.",
-		"Without sign-in, intranet results are left out and the answer says why.",
+		"Search Giant Swarm docs, release notes, handbook, blog posts and, when signed in, the intranet; docs only: search_docs.",
+		"Without sign-in, intranet results are left out and the answer says why. "+
+			"Release notes rank last and blog posts low: to search release notes, set breadcrumb_filter [\"changes\"].",
 	), searchInputSchema(map[string]interface{}{
 		"type_filter": map[string]interface{}{
 			schemaKeyType:        schemaTypeString,
-			schemaKeyDescription: "Restrict to one source type, e.g. \"Intranet\", \"Documentation\" or \"Blog\".",
+			schemaKeyDescription: "Restrict to one source type, exact case: \"Documentation\", \"Handbook\", \"Blog\" or \"Intranet\".",
 			schemaKeyDefault:     "",
 		},
 		"breadcrumb_filter": map[string]interface{}{
 			schemaKeyType:        "array",
-			schemaKeyDescription: "Restrict to one section by its path, e.g. [\"docs\", \"support-and-ops\"].",
+			schemaKeyDescription: "Section path from the top, one URL segment per level, e.g. [\"changes\"] for release notes or [\"docs\", \"support-and-ops\"].",
 			"items": map[string]interface{}{
 				schemaKeyType: schemaTypeString,
 			},
@@ -199,30 +200,30 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	})), withLogging("search", optionalAuth(searchHandler(client), authMgr, forwarded)))
 
 	s.AddTool(newTool("search_docs", tooldesc.Describe(
-		"Search the public Giant Swarm documentation at docs.giantswarm.io; to include the intranet and blog, use search.",
-		"",
+		"Search the public Giant Swarm documentation at docs.giantswarm.io; for handbook, blog and intranet, use search.",
+		"Release notes are included but rank last: to search them, use search with breadcrumb_filter [\"changes\"].",
 	), searchInputSchema(nil)), withLogging("search_docs", searchDocsHandler(client)))
 
 	if intranet {
 		s.AddTool(newTool("search_runbook", tooldesc.Describe(
-			"Find an operations runbook in the Giant Swarm intranet; for a legacy ops recipe, use search_ops_recipe.",
+			"Find an operations runbook in the Giant Swarm intranet.",
 			"Requires sign-in.",
 		), searchInputSchema(nil)), withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, forwarded, transport)))
 
 		s.AddTool(newTool("search_ops_recipe", tooldesc.Describe(
-			"Find a legacy ops recipe in the Giant Swarm intranet; current runbooks are found with search_runbook.",
+			"Search the intranet's legacy ops-recipes section; the recipes moved to runbooks, so use search_runbook.",
 			"Requires sign-in.",
 		), searchInputSchema(nil)), withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, forwarded, transport)))
 	}
 
 	s.AddTool(newTool("read_docs_url", tooldesc.Describe(
-		"Read one documentation page from docs.giantswarm.io as Markdown; read_docs_index lists every page.",
+		"Read one documentation page of docs.giantswarm.io as Markdown; find it with search_docs or read_docs_index.",
 		"",
 	), urlInputSchema("A page on docs.giantswarm.io, e.g. https://docs.giantswarm.io/some-page/")), withLogging("read_docs_url", readDocsURLHandler(client)))
 
 	s.AddTool(newTool("read_docs_index", tooldesc.Describe(
-		"List every docs.giantswarm.io page with its title, description and link, as Markdown.",
-		"",
+		"List the documentation pages of docs.giantswarm.io (llms.txt) with title, description and link; no release notes.",
+		"About 60 kB in one answer: to find one page, search_docs is cheaper.",
 	), mcp.ToolInputSchema{
 		Type:       schemaTypeObject,
 		Properties: map[string]interface{}{},

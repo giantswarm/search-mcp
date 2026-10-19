@@ -1,6 +1,6 @@
 # Tools
 
-Generated from the registered tools: run `TOOLS_DOC_UPDATE=1 go test ./internal/search/ -run TestToolsDocIsCurrent` to update.
+Generated from the registered tools (`make tools-doc`). This is the stdio set; over HTTP without OAuth or forwarded tokens only `search`, `search_docs`, `read_docs_url`, `read_docs_index` and `read_handbook_url` are offered.
 
 | Tool | Kind |
 |---|---|
@@ -16,7 +16,9 @@ Generated from the registered tools: run `TOOLS_DOC_UPDATE=1 go test ./internal/
 ## `read_docs_index`
 
 ```text
-List every docs.giantswarm.io page with its title, description and link, as Markdown.
+List the documentation pages of docs.giantswarm.io (llms.txt) with title, description and link; no release notes.
+
+About 60 kB in one answer: to find one page, search_docs is cheaper.
 ```
 
 ```json
@@ -30,7 +32,7 @@ List every docs.giantswarm.io page with its title, description and link, as Mark
 ## `read_docs_url`
 
 ```text
-Read one documentation page from docs.giantswarm.io as Markdown; read_docs_index lists every page.
+Read one documentation page of docs.giantswarm.io as Markdown; find it with search_docs or read_docs_index.
 ```
 
 ```json
@@ -95,9 +97,9 @@ Requires sign-in.
 ## `search`
 
 ```text
-Search every Giant Swarm source, intranet included; for the public product documentation only, use search_docs.
+Search Giant Swarm docs, release notes, handbook, blog posts and, when signed in, the intranet; docs only: search_docs.
 
-Without sign-in, intranet results are left out and the answer says why.
+Without sign-in, intranet results are left out and the answer says why. Release notes rank last and blog posts low: to search release notes, set breadcrumb_filter ["changes"].
 ```
 
 ```json
@@ -105,7 +107,7 @@ Without sign-in, intranet results are left out and the answer says why.
   "properties": {
     "breadcrumb_filter": {
       "default": [],
-      "description": "Restrict to one section by its path, e.g. [\"docs\", \"support-and-ops\"].",
+      "description": "Section path from the top, one URL segment per level, e.g. [\"changes\"] for release notes or [\"docs\", \"support-and-ops\"].",
       "items": {
         "type": "string"
       },
@@ -132,7 +134,7 @@ Without sign-in, intranet results are left out and the answer says why.
     },
     "type_filter": {
       "default": "",
-      "description": "Restrict to one source type, e.g. \"Intranet\", \"Documentation\" or \"Blog\".",
+      "description": "Restrict to one source type, exact case: \"Documentation\", \"Handbook\", \"Blog\" or \"Intranet\".",
       "type": "string"
     }
   },
@@ -146,7 +148,9 @@ Without sign-in, intranet results are left out and the answer says why.
 ## `search_docs`
 
 ```text
-Search the public Giant Swarm documentation at docs.giantswarm.io; to include the intranet and blog, use search.
+Search the public Giant Swarm documentation at docs.giantswarm.io; for handbook, blog and intranet, use search.
+
+Release notes are included but rank last: to search them, use search with breadcrumb_filter ["changes"].
 ```
 
 ```json
@@ -182,7 +186,7 @@ Search the public Giant Swarm documentation at docs.giantswarm.io; to include th
 ## `search_ops_recipe`
 
 ```text
-Find a legacy ops recipe in the Giant Swarm intranet; current runbooks are found with search_runbook.
+Search the intranet's legacy ops-recipes section; the recipes moved to runbooks, so use search_runbook.
 
 Requires sign-in.
 ```
@@ -220,7 +224,7 @@ Requires sign-in.
 ## `search_runbook`
 
 ```text
-Find an operations runbook in the Giant Swarm intranet; for a legacy ops recipe, use search_ops_recipe.
+Find an operations runbook in the Giant Swarm intranet.
 
 Requires sign-in.
 ```

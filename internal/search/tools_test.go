@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,17 +35,43 @@ func registeredTools(t *testing.T, transport string) map[string]*server.ServerTo
 	return newTestServer(transport).ListTools()
 }
 
-// Over stdio every tool is registered, the intranet ones included.
+// stdioServer registers every tool, the intranet ones included.
+var stdioServer = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStdio) })
+
 func TestToolDescriptions(t *testing.T) {
-	if err := tooldesc.CheckServer(newTestServer(transportStdio), tooldesc.DefaultBudget); err != nil {
+	if err := tooldesc.CheckServer(stdioServer(), tooldesc.DefaultBudget); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestToolsDocIsCurrent(t *testing.T) {
-	tooldesctest.AssertServerDoc(t, newTestServer(transportStdio),
-		"# Tools\n\nGenerated from the registered tools: run `TOOLS_DOC_UPDATE=1 go test ./internal/search/ -run TestToolsDocIsCurrent` to update.",
+	tooldesctest.AssertServerDoc(t, stdioServer(),
+		"# Tools\n\nGenerated from the registered tools (`make tools-doc`). This is the stdio set; over HTTP without OAuth or forwarded tokens "+
+			"only `search`, `search_docs`, `read_docs_url`, `read_docs_index` and `read_handbook_url` are offered.",
 		"../../docs/tools.md")
+}
+
+func TestToolsAreReadOnly(t *testing.T) {
+	for name, st := range stdioServer().ListTools() {
+		a := st.Tool.Annotations
+		if a.ReadOnlyHint == nil || !*a.ReadOnlyHint || a.DestructiveHint == nil || *a.DestructiveHint || a.IdempotentHint == nil || !*a.IdempotentHint {
+			t.Errorf("%s must be annotated read-only, not destructive and idempotent", name)
+		}
+	}
+}
+
+// TestSearchTermsAreNotStrictByDefault: agents send many terms, and strict AND
+// matching left out relevant results (#111).
+func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
+	for _, name := range []string{"search", "search_docs", "search_runbook", "search_ops_recipe"} {
+		props := stdioServer().GetTool(name).Tool.InputSchema.Properties
+		for param, fact := range map[string]string{paramTerm: "every word", paramRequireAllTerms: "longer queries"} {
+			d, _ := props[param].(map[string]interface{})[schemaKeyDescription].(string)
+			if !strings.Contains(d, fact) {
+				t.Errorf("%s.%s lost %q from #111: agents send many terms, and strict AND matching left out relevant results", name, param, fact)
+			}
+		}
+	}
 }
 
 func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {
