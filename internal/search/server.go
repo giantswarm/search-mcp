@@ -300,6 +300,28 @@ func (s *Server) mcpHandler() http.Handler {
 	}), maxMCPBodyBytes)
 }
 
+// deviceLookup finds a pending device flow by the code the person entered.
+// auth.Manager implements it.
+type deviceLookup interface {
+	GetDeviceByUserCode(userCode string) (*auth.DeviceCodeData, error)
+}
+
+var _ deviceLookup = (*auth.Manager)(nil)
+
+// clearDeviceUserCode clears the device cookie. The attributes must match the
+// ones used when setting it.
+func clearDeviceUserCode(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     deviceUserCodeCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 // deviceUserCodeCookie carries a device flow's user code from /device to the
 // callback.
 const deviceUserCodeCookie = "device_user_code"
@@ -321,54 +343,54 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 
 	// OAuth callback endpoint
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
-		state := r.URL.Query().Get("state")
+		query := r.URL.Query()
 
+		// A device flow's sign-in carries the device's user code in a cookie.
+		// It is cleared whatever the outcome, so it cannot outlive this
+		// sign-in and mark a later one as a device flow.
+		userCode := ""
+		if cookie, err := r.Cookie(deviceUserCodeCookie); err == nil {
+			userCode = cookie.Value
+			clearDeviceUserCode(w)
+		}
+		retry := messageStartAgain
+		if userCode != "" {
+			retry = messageEnterCode
+		}
+
+		if errorCode := query.Get("error"); errorCode != "" {
+			s.logger.Warn("OAuth provider refused the sign-in",
+				"error", errorCode, "error_description", query.Get("error_description"))
+			renderSignInError(w, http.StatusBadRequest, "The sign-in was denied or failed", retry)
+			return
+		}
+
+		code := query.Get("code")
 		if code == "" {
 			s.logger.Error("OAuth callback missing code")
-			renderSignInError(w, http.StatusBadRequest, "The sign-in response is incomplete", messageStartAgain)
+			renderSignInError(w, http.StatusBadRequest, "The sign-in response is incomplete", retry)
 			return
 		}
 
-		err := s.authMgr.HandleCallback(r.Context(), code, state)
-		if err != nil {
+		if err := s.authMgr.HandleCallback(r.Context(), code, query.Get("state")); err != nil {
 			s.logger.Error("auth callback failed", "error", err)
-			renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be completed", messageStartAgain)
+			renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be completed", retry)
 			return
 		}
 
-		// Check if this is a device flow authorization
-		cookie, err := r.Cookie(deviceUserCodeCookie)
-		if err == nil && cookie.Value != "" {
-			// Device flow - need to link tokens to the device
-			userCode := cookie.Value
-
-			// Clear the cookie (attributes must match the ones used when setting it)
-			http.SetCookie(w, &http.Cookie{
-				Name:     deviceUserCodeCookie,
-				Value:    "",
-				Path:     "/",
-				MaxAge:   -1,
-				Secure:   true,
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			})
-
+		if userCode != "" {
 			// The tokens were just stored in HandleCallback above
 			// Since both device flow and HTTP mode share the same token storage,
 			// the device can now use IsAuthenticated() to check for tokens
 			// Note: We don't need to call AuthorizeDevice on the device store
 			// because we're using a "retry" pattern instead of polling
-
 			s.logger.Info("device flow authorization completed", "user_code", userCode)
-
 			pagekit.Render(w, http.StatusOK, deviceSignedInPage(userCode))
 			return
 		}
 
 		// Standard OAuth flow (not device flow)
 		s.logger.Info("authentication successful")
-
 		pagekit.Render(w, http.StatusOK, signedInPage)
 	})
 
@@ -380,7 +402,13 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 		case http.MethodPost:
 			s.handleDeviceAuthorize(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "GET, POST")
+			pagekit.Render(w, http.StatusMethodNotAllowed, pagekit.Page{
+				Title:   productName,
+				Heading: "Not supported",
+				Summary: "This page only accepts the device code form",
+				Message: messageEnterCode,
+			})
 		}
 	})
 
@@ -498,10 +526,10 @@ func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get device data by user code
-	mgr, ok := s.authMgr.(*auth.Manager)
+	mgr, ok := s.authMgr.(deviceLookup)
 	if !ok {
-		s.logger.Error("auth manager is not a Manager type")
-		renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be started", messageTryLater)
+		s.logger.Error("auth manager does not support the device flow")
+		renderSignInError(w, http.StatusInternalServerError, "The device sign-in is not available", messageContactSupport)
 		return
 	}
 
