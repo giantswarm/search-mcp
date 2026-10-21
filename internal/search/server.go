@@ -77,19 +77,14 @@ func NewServer(config ServerConfig) (*Server, error) {
 
 	// Initialize auth manager (for both HTTP and stdio mode)
 	var authMgr auth.AuthManager
-	var serverAddr string
-	if config.Transport == transportStreamableHTTP {
-		serverAddr = config.HTTPAddr
-	} else {
-		serverAddr = ":8080" // Default for device flow verification URL
-	}
 
+	// Over stdio, the device flow's HTTP server listens on HTTPAddr too.
 	authConfig := auth.Config{
 		IssuerURL:    os.Getenv("OAUTH_ISSUER_URL"),
 		ClientID:     os.Getenv("OAUTH_CLIENT_ID"),
 		ClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
 		Scopes:       []string{"openid", "offline_access"},
-		ServerAddr:   serverAddr,
+		ServerAddr:   config.HTTPAddr,
 	}
 
 	forwardedConfig := auth.ForwardedConfig{

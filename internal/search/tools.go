@@ -370,12 +370,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 						deviceData.UserCode),
 				), nil
 			}
-
-			// Authenticated - proceed with request
-		}
-
-		// Check if user is authenticated
-		if !authMgr.IsAuthenticated() {
+		} else if !authMgr.IsAuthenticated() {
 			return mcp.NewToolResultError(
 				fmt.Sprintf("❌ Authentication required\n\n"+
 					"You need to authenticate before accessing intranet resources.\n\n"+
@@ -384,14 +379,10 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 			), nil
 		}
 
-		// Get valid token (will refresh if needed)
+		// Get valid token (will refresh if needed); its error links the login
 		token, err := authMgr.GetToken(ctx)
 		if err != nil {
-			return mcp.NewToolResultError(
-				fmt.Sprintf("❌ Authentication failed: %v\n\n"+
-					"Your session may have expired. Please re-authenticate at:\n"+
-					"%s", err, authMgr.LoginURL()),
-			), nil
+			return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v", err)), nil
 		}
 
 		// Inject token into context for client to use

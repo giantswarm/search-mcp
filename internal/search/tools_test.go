@@ -308,7 +308,10 @@ func TestRequireAuth_WithoutOAuthExplainsSetup(t *testing.T) {
 type signedOut struct{ auth.AuthManager }
 
 func (signedOut) IsAuthenticated() bool { return false }
-func (signedOut) LoginURL() string      { return "http://127.0.0.1:9090/oauth/login" }
+func (signedOut) GetToken(context.Context) (string, error) {
+	return "", errors.New("not signed in")
+}
+func (signedOut) LoginURL() string { return "http://127.0.0.1:9090/oauth/login" }
 
 func TestRequireAuth_SignedOutLinksTheServersLogin(t *testing.T) {
 	handler := requireAuth(unreachableHandler(t), signedOut{}, nil, transportStreamableHTTP)

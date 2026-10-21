@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"strings"
 
@@ -215,8 +217,8 @@ func (m *Manager) AuthorizeDeviceWithUserCode(userCode string, tokens *TokenData
 
 // formatError provides user-friendly error messages with guidance
 func (m *Manager) formatError(err error) error {
-	switch err {
-	case ErrTokenNotFound:
+	switch {
+	case errors.Is(err, ErrTokenNotFound):
 		return fmt.Errorf(
 			"not authenticated: no valid session found\n"+
 				"Please authenticate by visiting: %s\n"+
@@ -224,23 +226,23 @@ func (m *Manager) formatError(err error) error {
 			m.LoginURL(),
 		)
 
-	case ErrTokenExpired:
+	case errors.Is(err, ErrTokenExpired):
 		return fmt.Errorf(
 			"authentication expired: your session has timed out\n"+
 				"Please re-authenticate by visiting: %s",
 			m.LoginURL(),
 		)
 
-	case ErrRefreshFailed:
+	case errors.Is(err, ErrRefreshFailed):
 		return fmt.Errorf(
-			"token refresh failed: %w\n"+
+			"%w\n"+
 				"This may indicate revoked access or network issues.\n"+
 				"Try re-authenticating at: %s",
 			err, m.LoginURL(),
 		)
 
 	default:
-		return fmt.Errorf("authentication error: %w", err)
+		return fmt.Errorf("authentication error: %w\nTry re-authenticating at: %s", err, m.LoginURL())
 	}
 }
 
@@ -271,19 +273,22 @@ func generateRedirectURI(serverAddr string) string {
 	return serverURL(serverAddr) + "/callback"
 }
 
-// serverURL returns the base URL of the server listening on serverAddr
+// serverURL returns the base URL of the server listening on serverAddr; a
+// server listening on every interface is reached on localhost
 func serverURL(serverAddr string) string {
 	if serverAddr == "" {
 		serverAddr = ":8080"
 	}
 
-	// Handle different address formats
-	host := serverAddr
-	if host[0] == ':' {
-		host = "localhost" + host
+	host, port, err := net.SplitHostPort(serverAddr)
+	if err != nil {
+		return "http://" + serverAddr
+	}
+	if ip := net.ParseIP(host); host == "" || ip != nil && ip.IsUnspecified() {
+		host = "localhost"
 	}
 
-	return "http://" + host
+	return "http://" + net.JoinHostPort(host, port)
 }
 
 // generateRandomState generates a cryptographically secure random state
