@@ -173,7 +173,10 @@ Tokens are automatically refreshed when they approach expiration:
 ### Public Tools (No Auth Required)
 
 - `search` - Search docs, release notes, handbook and blog posts; with sign-in also the intranet
-- `read_handbook_url` - Read public handbook pages
+- `search_docs` - Search only the public documentation
+- `read_docs_index` - List the documentation pages of docs.giantswarm.io
+- `read_docs_url` - Read one documentation page
+- `read_handbook_url` - Read one handbook page
 
 ### Intranet Tools (Auth Required)
 

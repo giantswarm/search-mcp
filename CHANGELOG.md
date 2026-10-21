@@ -7,29 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- The MCP endpoint refuses a request body larger than 1 MiB before mcp-go reads it whole (CVE-2026-108859, no fixed mcp-go release yet; the scan ignores it until 2026-11-12) ([#](https://github.com/giantswarm/search-mcp/issues/)).
-- `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
-- The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.
-
 ### Added
 
 - Over streamable HTTP, `FORWARDED_TOKEN_ISSUER_URL` and `FORWARDED_TOKEN_AUDIENCE` make a shared server reach the intranet as each caller: it takes the bearer token an MCP gateway forwards with the request, verifies its signature, issuer, audience and expiry, and uses it for that request only, never storing it. The intranet tools are advertised in this mode; a call without a valid token gets an authentication error. Stdio and the `OAUTH_*` login are unchanged.
 
 ### Changed
 
-- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources and that the intranet needs sign-in, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `search` mentions the intranet only where the server can reach it, and says how to reach release notes and blog posts, which rank low (`breadcrumb_filter ["changes"]`, `type_filter "Blog"`); `type_filter` names its exact values, and `breadcrumb_filter` takes one element per segment of a result's breadcrumb; `read_docs_index` lists the documentation pages without release notes, in one large answer. Tests hold every tool to read-only annotations and keep #111's similarity ranking as the default; `make tools-doc` regenerates `docs/tools.md`.
-- Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
-
-### Fixed
-
-- Helm chart: installs with its default values. The route is off by default (`route.enabled: false`), `route.hostnames` may be empty while it is off, and an enabled route without a hostname fails the render with a clear message instead of matching every host on the Gateway. Before, the schema refused the defaults and every in-cluster deployment without a route.
-- Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
+- The tool descriptions say what each tool does today ([giantswarm#38592](https://github.com/giantswarm/giantswarm/issues/38592)): `search` names its sources, mentions the intranet only where a sign-in is configured, and says how to reach release notes, which rank last (`breadcrumb_filter ["changes"]`); `search_docs` takes `breadcrumb_filter` too, so it can reach them; `type_filter` names its exact values, and `breadcrumb_filter` takes one element per segment of a result's breadcrumb; `read_docs_index` lists the documentation pages without release notes, in one large answer. Tests hold every tool to read-only annotations and keep #111's similarity ranking as the default; `make tools-doc` regenerates `docs/tools.md`.
+- Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
 
 ### Removed
 
 - `search_ops_recipe`: the intranet's ops-recipes section is gone (the recipes moved to runbooks), so it found nothing; search runbooks with `search_runbook` ([#233](https://github.com/giantswarm/search-mcp/issues/233)).
+
+### Fixed
+
+- The MCP endpoint refuses a request body larger than 1 MiB before mcp-go reads it whole (CVE-2026-108859, no fixed mcp-go release yet; the scan ignores it until 2026-11-12) ([#](https://github.com/giantswarm/search-mcp/issues/)).
+- `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
+- The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.
+- Helm chart: installs with its default values. The route is off by default (`route.enabled: false`), `route.hostnames` may be empty while it is off, and an enabled route without a hostname fails the render with a clear message instead of matching every host on the Gateway. Before, the schema refused the defaults and every in-cluster deployment without a route.
+- Helm chart: the `helm.sh/chart` label is valid for any chart version. A long version (a branch build, or the `<version>+<digest>` that helm-controller installs) was cut at 63 characters onto a trailing `.`, `_` or `-`, and the API server refused every object carrying the label.
 
 ## [0.3.0] - 2026-04-17
 

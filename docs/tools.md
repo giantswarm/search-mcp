@@ -1,6 +1,6 @@
 # Tools
 
-Generated from the registered tools (`make tools-doc`). This is the stdio set; over HTTP without OAuth or forwarded tokens only these are offered: `read_docs_index`, `read_docs_url`, `read_handbook_url`, `search`, `search_docs`, and `search`'s description leaves out the intranet.
+Generated from the registered tools (`make tools-doc`) of a server with sign-in configured. Without sign-in configured, `search`'s description leaves out the intranet; over HTTP without OAuth or forwarded tokens only these are offered: `read_docs_index`, `read_docs_url`, `read_handbook_url`, `search`, `search_docs`.
 
 | Tool | Kind |
 |---|---|
@@ -98,7 +98,7 @@ Requires sign-in.
 ```text
 Search Giant Swarm docs, release notes, handbook, blog posts and, when signed in, the intranet; docs only: search_docs.
 
-Without sign-in, intranet results are left out and the answer says why. Release notes (changelogs) rank last: to search them, set breadcrumb_filter ["changes"]. Blog posts rank low: to search them, set type_filter "Blog".
+Without sign-in, intranet results are left out and the answer says why. Release notes (changelogs) rank last: to search them, set breadcrumb_filter ["changes"].
 ```
 
 ```json
@@ -149,12 +149,20 @@ Without sign-in, intranet results are left out and the answer says why. Release 
 ```text
 Search only the public documentation at docs.giantswarm.io; for every other source, use search.
 
-Release notes (changelogs) are included but rank last: to search them, use search with breadcrumb_filter ["changes"].
+Release notes (changelogs) rank last: to search them, set breadcrumb_filter ["changes"].
 ```
 
 ```json
 {
   "properties": {
+    "breadcrumb_filter": {
+      "default": [],
+      "description": "Section path from the top level, one element per segment of a result's Breadcrumb (a / b → [\"a\", \"b\"]), e.g. [\"changes\"].",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "require_all_terms": {
       "default": false,
       "description": "Only pages containing every word (strict AND). Leave false for longer queries ranked by relevance.",
