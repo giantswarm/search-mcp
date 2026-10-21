@@ -328,21 +328,21 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
 		}
 
+		// Only stdio registers the intranet tools without OAuth configured.
+		if authMgr == nil {
+			return mcp.NewToolResultError(
+				"❌ Authentication not configured\n\n" +
+					"This tool requires authentication to access Giant Swarm intranet.\n\n" +
+					"Please configure the following environment variables:\n" +
+					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
+					"  OAUTH_CLIENT_ID=searchmcp\n" +
+					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
+					"Then restart the server.",
+			), nil
+		}
+
 		// Stdio mode: Use device flow
 		if transport == transportStdio {
-			// Check if auth manager is configured
-			if authMgr == nil {
-				return mcp.NewToolResultError(
-					"❌ Authentication not configured\n\n" +
-						"This tool requires authentication to access Giant Swarm intranet.\n\n" +
-						"Please configure the following environment variables:\n" +
-						"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
-						"  OAUTH_CLIENT_ID=searchmcp\n" +
-						"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
-						"Then restart the server.",
-				), nil
-			}
-
 			// Check if already authenticated
 			if !authMgr.IsAuthenticated() {
 				// Need to initiate device flow
@@ -370,42 +370,19 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 						deviceData.UserCode),
 				), nil
 			}
-
-			// Authenticated - proceed with request
-		}
-
-		// Check if auth is configured
-		if authMgr == nil {
+		} else if !authMgr.IsAuthenticated() {
 			return mcp.NewToolResultError(
-				"❌ Authentication not configured\n\n" +
-					"This tool requires authentication to access Giant Swarm intranet.\n\n" +
-					"Please configure the following environment variables:\n" +
-					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
-					"  OAUTH_CLIENT_ID=searchmcp\n" +
-					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
-					"Then restart the server and authenticate by visiting:\n" +
-					"  http://localhost:8080/oauth/login",
+				fmt.Sprintf("❌ Authentication required\n\n"+
+					"You need to authenticate before accessing intranet resources.\n\n"+
+					"Please visit: %s\n\n"+
+					"After authenticating, you can use this tool.", authMgr.LoginURL()),
 			), nil
 		}
 
-		// Check if user is authenticated
-		if !authMgr.IsAuthenticated() {
-			return mcp.NewToolResultError(
-				"❌ Authentication required\n\n" +
-					"You need to authenticate before accessing intranet resources.\n\n" +
-					"Please visit: http://localhost:8080/oauth/login\n\n" +
-					"After authenticating, you can use this tool.",
-			), nil
-		}
-
-		// Get valid token (will refresh if needed)
+		// Get valid token (will refresh if needed); its error links the login
 		token, err := authMgr.GetToken(ctx)
 		if err != nil {
-			return mcp.NewToolResultError(
-				fmt.Sprintf("❌ Authentication failed: %v\n\n"+
-					"Your session may have expired. Please re-authenticate at:\n"+
-					"http://localhost:8080/oauth/login", err),
-			), nil
+			return mcp.NewToolResultError(fmt.Sprintf("❌ Authentication failed: %v", err)), nil
 		}
 
 		// Inject token into context for client to use
@@ -531,9 +508,9 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("url parameter is required"), nil
 		}
 
-		// Validate URL is from handbook
+		// Validate URL is from the docs site
 		if !strings.HasPrefix(url, "https://docs.giantswarm.io/") {
-			return mcp.NewToolResultError("❌ URL must be from the Giant Swarm handbook (https://docs.giantswarm.io/)."), nil
+			return mcp.NewToolResultError("❌ URL must be from the Giant Swarm documentation (https://docs.giantswarm.io/)."), nil
 		}
 
 		// Fetch content
@@ -558,7 +535,7 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 	}
 }
 
-// readDocsIndexHandler handles the read_docs_url tool
+// readDocsIndexHandler handles the read_docs_index tool
 func readDocsIndexHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Fetch content

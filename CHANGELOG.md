@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The error an intranet tool returns when OAuth is not configured shows its line breaks instead of a literal `\n\n`, and `read_docs_url`'s error for a URL outside docs.giantswarm.io calls that site the Giant Swarm documentation instead of the handbook ([#234](https://github.com/giantswarm/search-mcp/issues/234)).
+- With the `OAUTH_*` login, the intranet tools' sign-in errors link the server's own `/oauth/login`, built from `--http-addr`, once per message. Before, they always linked `http://localhost:8080/oauth/login`; over stdio, the login, callback and device-flow links used port 8080 whatever `--http-addr` said; a server listening on `0.0.0.0` or `[::]` linked that address instead of `localhost`; and an expired token that failed to refresh gave an error without a link.
 - The MCP endpoint refuses a request body larger than 1 MiB before mcp-go reads it whole (CVE-2026-108859, no fixed mcp-go release yet; the scan ignores it until 2026-11-12) ([#](https://github.com/giantswarm/search-mcp/issues/)).
 - `search` includes intranet results for an authenticated caller: it uses the forwarded token or the `OAUTH_*` login, as the intranet tools do. Before, it never sent a token, so it only ever returned public results, and a `type_filter` of `Intranet` returned none. A caller without a usable token still gets the public results, and the result says why intranet results are left out.
 - The chart's `env` and `envFrom` values validate against the Kubernetes `EnvVar` and `EnvFromSource` schemas; before, the schema rejected every entry, so no environment variable could be set.

@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -193,5 +196,40 @@ func TestTokenData_RefreshThreshold(t *testing.T) {
 	}
 	if !token3.NeedsRefresh() {
 		t.Error("Token with <12 minutes should need refresh")
+	}
+}
+
+func TestManager_LoginURL(t *testing.T) {
+	tests := map[string]string{
+		"":               "http://localhost:8080/oauth/login",
+		":9090":          "http://localhost:9090/oauth/login",
+		"127.0.0.1:8081": "http://127.0.0.1:8081/oauth/login",
+		"0.0.0.0:8080":   "http://localhost:8080/oauth/login",
+		"[::]:9090":      "http://localhost:9090/oauth/login",
+		"[::1]:9090":     "http://[::1]:9090/oauth/login",
+	}
+	for addr, want := range tests {
+		m := &Manager{config: Config{ServerAddr: addr}}
+		if got := m.LoginURL(); got != want {
+			t.Errorf("server address %q: login URL %q, want %q", addr, got, want)
+		}
+	}
+}
+
+// GetToken's errors come wrapped; each one says what happened and links the
+// login.
+func TestManager_FormatErrorLinksTheLogin(t *testing.T) {
+	m := &Manager{config: Config{ServerAddr: ":9090"}}
+	tests := map[error]string{
+		fmt.Errorf("failed to load tokens: %w", ErrTokenNotFound):                     "not authenticated",
+		fmt.Errorf("%w: %v", ErrTokenExpired, errors.New("invalid_grant")):            "authentication expired",
+		fmt.Errorf("token refresh failed: %w", fmt.Errorf("%w: x", ErrRefreshFailed)): "revoked access",
+		errors.New("failed to store tokens"):                                          "authentication error",
+	}
+	for err, want := range tests {
+		got := m.formatError(err).Error()
+		if !strings.Contains(got, want) || !strings.Contains(got, "http://localhost:9090/oauth/login") {
+			t.Errorf("%v: got %q, want %q and the login URL", err, got, want)
+		}
 	}
 }

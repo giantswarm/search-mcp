@@ -30,6 +30,7 @@ type fakeAuthManager struct {
 func (f *fakeAuthManager) GetToken(context.Context) (string, error) { return "", nil }
 func (f *fakeAuthManager) IsAuthenticated() bool                    { return false }
 func (f *fakeAuthManager) ClearTokens() error                       { return nil }
+func (f *fakeAuthManager) LoginURL() string                         { return "" }
 func (f *fakeAuthManager) InitiateAuth(context.Context) (string, error) {
 	return "https://idp.example.com/authorize", f.initiateErr
 }

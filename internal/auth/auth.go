@@ -29,6 +29,9 @@ type AuthManager interface {
 	// HandleCallback processes OAuth callback and stores tokens
 	HandleCallback(ctx context.Context, code string, state string) error
 
+	// LoginURL returns the URL of this server's OAuth login page
+	LoginURL() string
+
 	// ClearTokens removes stored tokens (logout)
 	ClearTokens() error
 }
