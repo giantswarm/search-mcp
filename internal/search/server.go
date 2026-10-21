@@ -3,7 +3,6 @@ package search
 import (
 	"context"
 	"fmt"
-	"html"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/giantswarm/pagekit"
 
 	"github.com/giantswarm/search-mcp/internal/auth"
 	"github.com/giantswarm/search-mcp/internal/metrics"
@@ -299,6 +300,32 @@ func (s *Server) mcpHandler() http.Handler {
 	}), maxMCPBodyBytes)
 }
 
+// deviceLookup finds a pending device flow by the code the person entered.
+// auth.Manager implements it.
+type deviceLookup interface {
+	GetDeviceByUserCode(userCode string) (*auth.DeviceCodeData, error)
+}
+
+var _ deviceLookup = (*auth.Manager)(nil)
+
+// clearDeviceUserCode clears the device cookie. The attributes must match the
+// ones used when setting it.
+func clearDeviceUserCode(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     deviceUserCodeCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// deviceUserCodeCookie carries a device flow's user code from /device to the
+// callback.
+const deviceUserCodeCookie = "device_user_code"
+
 // registerOAuthRoutes registers OAuth authentication routes
 func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 	// OAuth initiation endpoint
@@ -306,8 +333,7 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 		authURL, err := s.authMgr.InitiateAuth(r.Context())
 		if err != nil {
 			s.logger.Error("auth initiation failed", "error", err)
-			http.Error(w, fmt.Sprintf("Authentication initiation failed: %v", err),
-				http.StatusInternalServerError)
+			renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be started", messageTryLater)
 			return
 		}
 
@@ -317,97 +343,55 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 
 	// OAuth callback endpoint
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
-		state := r.URL.Query().Get("state")
+		query := r.URL.Query()
 
+		// A device flow's sign-in carries the device's user code in a cookie.
+		// It is cleared whatever the outcome, so it cannot outlive this
+		// sign-in and mark a later one as a device flow.
+		userCode := ""
+		if cookie, err := r.Cookie(deviceUserCodeCookie); err == nil {
+			userCode = cookie.Value
+			clearDeviceUserCode(w)
+		}
+		retry := messageStartAgain
+		if userCode != "" {
+			retry = messageEnterCode
+		}
+
+		if errorCode := query.Get("error"); errorCode != "" {
+			s.logger.Warn("OAuth provider refused the sign-in",
+				"error", errorCode, "error_description", query.Get("error_description"))
+			renderSignInError(w, http.StatusBadRequest, "The sign-in was denied or failed", retry)
+			return
+		}
+
+		code := query.Get("code")
 		if code == "" {
 			s.logger.Error("OAuth callback missing code")
-			http.Error(w, "Missing authorization code", http.StatusBadRequest)
+			renderSignInError(w, http.StatusBadRequest, "The sign-in response is incomplete", retry)
 			return
 		}
 
-		err := s.authMgr.HandleCallback(r.Context(), code, state)
-		if err != nil {
+		if err := s.authMgr.HandleCallback(r.Context(), code, query.Get("state")); err != nil {
 			s.logger.Error("auth callback failed", "error", err)
-			http.Error(w, fmt.Sprintf("Authentication callback failed: %v", err),
-				http.StatusInternalServerError)
+			renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be completed", retry)
 			return
 		}
 
-		// Check if this is a device flow authorization
-		cookie, err := r.Cookie("device_user_code")
-		if err == nil && cookie.Value != "" {
-			// Device flow - need to link tokens to the device
-			userCode := cookie.Value
-
-			// Clear the cookie (attributes must match the ones used when setting it)
-			http.SetCookie(w, &http.Cookie{
-				Name:     "device_user_code",
-				Value:    "",
-				Path:     "/",
-				MaxAge:   -1,
-				Secure:   true,
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			})
-
+		if userCode != "" {
 			// The tokens were just stored in HandleCallback above
 			// Since both device flow and HTTP mode share the same token storage,
 			// the device can now use IsAuthenticated() to check for tokens
 			// Note: We don't need to call AuthorizeDevice on the device store
 			// because we're using a "retry" pattern instead of polling
-
 			s.logger.Info("device flow authorization completed", "user_code", userCode)
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Authorized</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-        h1 { color: #2ecc71; }
-        p { line-height: 1.6; }
-        .code { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; display: inline-block; }
-    </style>
-</head>
-<body>
-    <h1>✓ Device Authorized</h1>
-    <p>Your device <span class="code">%s</span> has been successfully authorized.</p>
-    <p>You can now close this window and return to your device to access intranet resources.</p>
-</body>
-</html>
-			`, html.EscapeString(userCode))
+			pagekit.Render(w, http.StatusOK, deviceSignedInPage(userCode))
 			return
 		}
 
 		// Standard OAuth flow (not device flow)
 		s.logger.Info("authentication successful")
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authentication Successful</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-        h1 { color: #2ecc71; }
-        p { line-height: 1.6; }
-    </style>
-</head>
-<body>
-    <h1>✓ Authentication Successful</h1>
-    <p>You have successfully authenticated with Giant Swarm.</p>
-    <p>You can now close this window and return to your AI assistant to access intranet resources.</p>
-</body>
-</html>
-		`)
+		pagekit.Render(w, http.StatusOK, signedInPage)
 	})
 
 	// Device flow authorization page
@@ -418,7 +402,13 @@ func (s *Server) registerOAuthRoutes(mux *http.ServeMux) {
 		case http.MethodPost:
 			s.handleDeviceAuthorize(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.Header().Set("Allow", "GET, POST")
+			pagekit.Render(w, http.StatusMethodNotAllowed, pagekit.Page{
+				Title:   productName,
+				Heading: "Not supported",
+				Summary: "This page only accepts the device code form",
+				Message: messageEnterCode,
+			})
 		}
 	})
 
@@ -525,28 +515,28 @@ func (s *Server) serveDeviceAuthPage(w http.ResponseWriter, r *http.Request) {
 // handleDeviceAuthorize handles device authorization
 func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		renderSignInError(w, http.StatusBadRequest, "The code could not be read", messageEnterCode)
 		return
 	}
 
 	userCode := r.FormValue("user_code")
 	if userCode == "" {
-		s.serveDeviceError(w, "User code is required")
+		renderSignInError(w, http.StatusBadRequest, "No code was entered", messageEnterCode)
 		return
 	}
 
 	// Get device data by user code
-	mgr, ok := s.authMgr.(*auth.Manager)
+	mgr, ok := s.authMgr.(deviceLookup)
 	if !ok {
-		s.logger.Error("auth manager is not a Manager type")
-		s.serveDeviceError(w, "Internal server error")
+		s.logger.Error("auth manager does not support the device flow")
+		renderSignInError(w, http.StatusInternalServerError, "The device sign-in is not available", messageContactSupport)
 		return
 	}
 
 	deviceData, err := mgr.GetDeviceByUserCode(userCode)
 	if err != nil {
 		s.logger.Warn("invalid user code", "code", userCode, "error", err)
-		s.serveDeviceError(w, "Invalid or expired code. Please check the code and try again.")
+		renderSignInError(w, http.StatusBadRequest, "The code is invalid or has expired", messageEnterCode)
 		return
 	}
 
@@ -554,13 +544,13 @@ func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	authURL, err := s.authMgr.InitiateAuth(r.Context())
 	if err != nil {
 		s.logger.Error("failed to initiate auth", "error", err)
-		s.serveDeviceError(w, "Failed to start authorization")
+		renderSignInError(w, http.StatusInternalServerError, "The sign-in could not be started", messageTryLater)
 		return
 	}
 
 	// Store user code in session/cookie for callback
 	http.SetCookie(w, &http.Cookie{
-		Name:     "device_user_code",
+		Name:     deviceUserCodeCookie,
 		Value:    userCode,
 		Path:     "/",
 		MaxAge:   600,  // 10 minutes
@@ -573,62 +563,4 @@ func (s *Server) handleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to OAuth provider
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
-}
-
-// serveDeviceError serves an error page for device authorization
-func (s *Server) serveDeviceError(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusBadRequest)
-	_, _ = fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authorization Error</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #c62828;
-            margin-top: 0;
-        }
-        .error {
-            background: #ffebee;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-            color: #c62828;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>❌ Authorization Error</h1>
-        <div class="error">%s</div>
-        <a href="/device" class="btn">Try Again</a>
-    </div>
-</body>
-</html>
-	`, message)
 }
