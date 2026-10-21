@@ -275,6 +275,42 @@ func TestRequireAuth_ForwardedTokens(t *testing.T) {
 	}
 }
 
+func TestRequireAuth_WithoutOAuthExplainsSetup(t *testing.T) {
+	for _, transport := range []string{transportStdio, transportStreamableHTTP} {
+		handler := requireAuth(func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			t.Fatalf("%s: handler was reached", transport)
+			return nil, nil
+		}, nil, nil, transport)
+		result, err := handler(context.Background(), mcp.CallToolRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatalf("%s: want an error result", transport)
+		}
+		text := result.Content[0].(mcp.TextContent).Text
+		if strings.Contains(text, `\n`) || !strings.Contains(text, "(optional)\n\nThen restart the server") {
+			t.Errorf("%s: line breaks do not render: %q", transport, text)
+		}
+	}
+}
+
+func TestReadDocsURL_RejectsOtherSites(t *testing.T) {
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]any{paramURL: "https://handbook.giantswarm.io/docs/"}
+	result, err := readDocsURLHandler(nil)(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatal("want an error result")
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, "documentation (https://docs.giantswarm.io/)") || strings.Contains(text, "handbook") {
+		t.Errorf("error does not name the docs site: %q", text)
+	}
+}
+
 // stubAuthManager is an OAUTH_* login whose GetToken returns token or err.
 type stubAuthManager struct {
 	auth.AuthManager

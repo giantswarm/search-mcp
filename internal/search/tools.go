@@ -338,7 +338,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 						"Please configure the following environment variables:\n" +
 						"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
 						"  OAUTH_CLIENT_ID=searchmcp\n" +
-						"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
+						"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
 						"Then restart the server.",
 				), nil
 			}
@@ -382,7 +382,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 					"Please configure the following environment variables:\n" +
 					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
 					"  OAUTH_CLIENT_ID=searchmcp\n" +
-					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\\n\\n" +
+					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
 					"Then restart the server and authenticate by visiting:\n" +
 					"  http://localhost:8080/oauth/login",
 			), nil
@@ -531,9 +531,9 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("url parameter is required"), nil
 		}
 
-		// Validate URL is from handbook
+		// Validate URL is from the docs site
 		if !strings.HasPrefix(url, "https://docs.giantswarm.io/") {
-			return mcp.NewToolResultError("❌ URL must be from the Giant Swarm handbook (https://docs.giantswarm.io/)."), nil
+			return mcp.NewToolResultError("❌ URL must be from the Giant Swarm documentation (https://docs.giantswarm.io/)."), nil
 		}
 
 		// Fetch content
@@ -558,7 +558,7 @@ func readDocsURLHandler(client *Client) server.ToolHandlerFunc {
 	}
 }
 
-// readDocsIndexHandler handles the read_docs_url tool
+// readDocsIndexHandler handles the read_docs_index tool
 func readDocsIndexHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Fetch content
