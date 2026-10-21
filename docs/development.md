@@ -161,7 +161,6 @@ Use an MCP client (like Cursor or Claude Desktop) to test:
 
 3. **Specialized searches**:
    - Test `search_runbook("incident")`
-   - Test `search_ops_recipe("deployment")`
 
 ## Dependency Management
 

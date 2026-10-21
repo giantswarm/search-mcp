@@ -5,6 +5,7 @@
 - **Project**: Giant Swarm Search MCP Server
 - **Feature**: OAuth 2.1 Authentication for Intranet Access
 - **Version**: Phase 1 (HTTP OAuth Flow)
+- **Note**: a historical design document; the `search_ops_recipe` tool it once listed was removed in #235.
 
 ## Executive Summary
 
@@ -68,7 +69,6 @@ This specification defines the implementation of OAuth 2.1-based authentication 
 │  │  Tools (internal/search/tools.go)                    │  │
 │  │  - read_intranet_url (requires auth)                 │  │
 │  │  - search_runbook (requires auth)                    │  │
-│  │  - search_ops_recipe (requires auth)                 │  │
 │  │  - search (public - no auth)                         │  │
 │  │  - read_handbook_url (public - no auth)              │  │
 │  └──────────────────────────────────────────────────────┘  │
@@ -315,7 +315,6 @@ Update `internal/search/tools.go`:
 var authRequiredTools = map[string]bool{
     "read_intranet_url": true,
     "search_runbook":    true,
-    "search_ops_recipe": true,
 }
 
 // Modified handler wrapper
@@ -1012,7 +1011,7 @@ Add to `README.md`:
 ```markdown
 ## Authentication
 
-The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks, ops recipes).
+The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks).
 
 ### Quick Start
 
@@ -1042,7 +1041,6 @@ The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's int
 - 🔒 **Intranet tools** (authentication required):
   - `read_intranet_url` - Read intranet pages
   - `search_runbook` - Search DevOps runbooks
-  - `search_ops_recipe` - Search ops recipes
 
 ### Token Storage
 
@@ -1067,7 +1065,7 @@ This guide covers OAuth 2.1 authentication for the Giant Swarm Search MCP Server
 
 ## Overview
 
-The server uses OAuth 2.1 with PKCE to authenticate users against Giant Swarm's Dex identity provider. This enables secure access to internal resources like the intranet, runbooks, and ops recipes.
+The server uses OAuth 2.1 with PKCE to authenticate users against Giant Swarm's Dex identity provider. This enables secure access to internal resources like the intranet and runbooks.
 
 ## Prerequisites
 

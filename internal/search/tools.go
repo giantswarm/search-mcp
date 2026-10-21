@@ -23,11 +23,12 @@ const (
 
 // Tool parameter names shared across input schemas and handlers.
 const (
-	paramTerm            = "term"
-	paramStartIndex      = "start_index"
-	paramSize            = "size"
-	paramRequireAllTerms = "require_all_terms"
-	paramURL             = "url"
+	paramTerm             = "term"
+	paramStartIndex       = "start_index"
+	paramSize             = "size"
+	paramRequireAllTerms  = "require_all_terms"
+	paramURL              = "url"
+	paramBreadcrumbFilter = "breadcrumb_filter"
 )
 
 // JSON schema keys and type names used in tool input schemas.
@@ -39,6 +40,10 @@ const (
 	schemaTypeString     = "string"
 	schemaTypeInteger    = "integer"
 )
+
+// releaseNotesHint: release notes are most of the index, and the ranking puts
+// them last.
+const releaseNotesHint = "Release notes (changelogs) rank last: to search them, set breadcrumb_filter [\"changes\"]."
 
 // Parameter descriptions shared by the search tools.
 const (
@@ -101,6 +106,19 @@ func searchInputSchema(extraProperties map[string]interface{}) mcp.ToolInputSche
 		Type:       schemaTypeObject,
 		Properties: properties,
 		Required:   []string{paramTerm},
+	}
+}
+
+// breadcrumbFilterParam is the breadcrumb_filter property of the search tools
+// that take one.
+func breadcrumbFilterParam() map[string]interface{} {
+	return map[string]interface{}{
+		schemaKeyType:        "array",
+		schemaKeyDescription: "Section path from the top level, one element per segment of a result's Breadcrumb (a / b → [\"a\", \"b\"]), e.g. [\"changes\"].",
+		"items": map[string]interface{}{
+			schemaKeyType: schemaTypeString,
+		},
+		schemaKeyDefault: []interface{}{},
 	}
 }
 
@@ -179,50 +197,46 @@ func RegisterTools(s *server.MCPServer, client *Client, authMgr auth.AuthManager
 	// how to configure it.
 	intranet := authMgr != nil || forwarded != nil || transport == transportStdio
 
+	// search promises the intranet only where a sign-in can reach it.
+	sources, searchDetails := "docs, release notes, handbook and blog posts", releaseNotesHint
+	if authMgr != nil || forwarded != nil {
+		sources = "docs, release notes, handbook, blog posts and, when signed in, the intranet"
+		searchDetails = "Without sign-in, intranet results are left out and the answer says why. " + releaseNotesHint
+	}
 	s.AddTool(newTool("search", tooldesc.Describe(
-		"Search every Giant Swarm source, intranet included; for the public product documentation only, use search_docs.",
-		"Without sign-in, intranet results are left out and the answer says why.",
+		"Search Giant Swarm "+sources+"; docs only: search_docs.",
+		searchDetails,
 	), searchInputSchema(map[string]interface{}{
 		"type_filter": map[string]interface{}{
 			schemaKeyType:        schemaTypeString,
-			schemaKeyDescription: "Restrict to one source type, e.g. \"Intranet\", \"Documentation\" or \"Blog\".",
+			schemaKeyDescription: "Restrict to one source type, exact case: \"Documentation\", \"Handbook\", \"Blog\" or \"Intranet\".",
 			schemaKeyDefault:     "",
 		},
-		"breadcrumb_filter": map[string]interface{}{
-			schemaKeyType:        "array",
-			schemaKeyDescription: "Restrict to one section by its path, e.g. [\"docs\", \"support-and-ops\"].",
-			"items": map[string]interface{}{
-				schemaKeyType: schemaTypeString,
-			},
-			schemaKeyDefault: []interface{}{},
-		},
+		paramBreadcrumbFilter: breadcrumbFilterParam(),
 	})), withLogging("search", optionalAuth(searchHandler(client), authMgr, forwarded)))
 
 	s.AddTool(newTool("search_docs", tooldesc.Describe(
-		"Search the public Giant Swarm documentation at docs.giantswarm.io; to include the intranet and blog, use search.",
-		"",
-	), searchInputSchema(nil)), withLogging("search_docs", searchDocsHandler(client)))
+		"Search only the public documentation at docs.giantswarm.io; for every other source, use search.",
+		releaseNotesHint,
+	), searchInputSchema(map[string]interface{}{
+		paramBreadcrumbFilter: breadcrumbFilterParam(),
+	})), withLogging("search_docs", searchDocsHandler(client)))
 
 	if intranet {
 		s.AddTool(newTool("search_runbook", tooldesc.Describe(
-			"Find an operations runbook in the Giant Swarm intranet; for a legacy ops recipe, use search_ops_recipe.",
+			"Find an operations runbook in the Giant Swarm intranet.",
 			"Requires sign-in.",
 		), searchInputSchema(nil)), withLogging("search_runbook", requireAuth(searchRunbookHandler(client), authMgr, forwarded, transport)))
-
-		s.AddTool(newTool("search_ops_recipe", tooldesc.Describe(
-			"Find a legacy ops recipe in the Giant Swarm intranet; current runbooks are found with search_runbook.",
-			"Requires sign-in.",
-		), searchInputSchema(nil)), withLogging("search_ops_recipe", requireAuth(searchOpsRecipeHandler(client), authMgr, forwarded, transport)))
 	}
 
 	s.AddTool(newTool("read_docs_url", tooldesc.Describe(
-		"Read one documentation page from docs.giantswarm.io as Markdown; read_docs_index lists every page.",
+		"Read one documentation page of docs.giantswarm.io as Markdown; find it with search_docs or read_docs_index.",
 		"",
 	), urlInputSchema("A page on docs.giantswarm.io, e.g. https://docs.giantswarm.io/some-page/")), withLogging("read_docs_url", readDocsURLHandler(client)))
 
 	s.AddTool(newTool("read_docs_index", tooldesc.Describe(
-		"List every docs.giantswarm.io page with its title, description and link, as Markdown.",
-		"",
+		"List the documentation pages of docs.giantswarm.io (llms.txt) with title, description and link; no release notes.",
+		"All of it comes in one large answer: to find one page, search_docs is cheaper.",
 	), mcp.ToolInputSchema{
 		Type:       schemaTypeObject,
 		Properties: map[string]interface{}{},
@@ -414,7 +428,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 		startIndex := request.GetInt(paramStartIndex, 0)
 		size := request.GetInt(paramSize, itemsPerPageDefault)
 		typeFilter := request.GetString("type_filter", "")
-		breadcrumbFilter := request.GetStringSlice("breadcrumb_filter", []string{})
+		breadcrumbFilter := request.GetStringSlice(paramBreadcrumbFilter, []string{})
 		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
 
 		// Perform search
@@ -439,7 +453,7 @@ func searchHandler(client *Client) server.ToolHandlerFunc {
 	}
 }
 
-// searchDocsHandler handles the search tool
+// searchDocsHandler handles the search_docs tool
 func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Parse arguments
@@ -454,11 +468,12 @@ func searchDocsHandler(client *Client) server.ToolHandlerFunc {
 
 		// Perform search
 		searchReq := SearchRequest{
-			Term:            term,
-			StartIndex:      startIndex,
-			Size:            size,
-			TypeFilter:      "Documentation",
-			RequireAllTerms: requireAllTerms,
+			Term:             term,
+			StartIndex:       startIndex,
+			Size:             size,
+			TypeFilter:       "Documentation",
+			BreadcrumbFilter: request.GetStringSlice(paramBreadcrumbFilter, []string{}),
+			RequireAllTerms:  requireAllTerms,
 		}
 
 		resp, err := client.Search(ctx, searchReq)
@@ -492,40 +507,6 @@ func searchRunbookHandler(client *Client) server.ToolHandlerFunc {
 			StartIndex:       startIndex,
 			Size:             size,
 			BreadcrumbFilter: []string{"support-and-ops", "runbooks"},
-			RequireAllTerms:  requireAllTerms,
-		}
-
-		resp, err := client.Search(ctx, searchReq)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Search failed: %v", err)), nil
-		}
-
-		// Format results
-		result := FormatSearchResults(term, startIndex, resp)
-
-		return mcp.NewToolResultText(result), nil
-	}
-}
-
-// searchOpsRecipeHandler handles the search_ops_recipe tool
-func searchOpsRecipeHandler(client *Client) server.ToolHandlerFunc {
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Parse arguments
-		term := request.GetString(paramTerm, "")
-		if term == "" {
-			return mcp.NewToolResultError("term parameter is required"), nil
-		}
-
-		startIndex := request.GetInt(paramStartIndex, 0)
-		size := request.GetInt(paramSize, itemsPerPageDefault)
-		requireAllTerms := request.GetBool(paramRequireAllTerms, false)
-
-		// Perform search with ops-recipes breadcrumb filter
-		searchReq := SearchRequest{
-			Term:             term,
-			StartIndex:       startIndex,
-			Size:             size,
-			BreadcrumbFilter: []string{"support-and-ops", "ops-recipes"},
 			RequireAllTerms:  requireAllTerms,
 		}
 

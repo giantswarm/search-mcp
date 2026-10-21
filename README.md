@@ -100,20 +100,19 @@ The server provides these tools to AI assistants; [docs/tools.md](docs/tools.md)
 
 | Tool | Purpose |
 |---|---|
-| `search` | Search every source, intranet included |
-| `search_docs` | Search the public documentation at docs.giantswarm.io |
+| `search` | Search docs, release notes, handbook, blog posts and, when signed in, the intranet |
+| `search_docs` | Search only the public documentation at docs.giantswarm.io |
 | `search_runbook` | Find an operations runbook in the intranet. **Requires authentication.** |
-| `search_ops_recipe` | Find a legacy ops recipe in the intranet. **Requires authentication.** |
-| `read_docs_index` | List every docs.giantswarm.io page |
+| `read_docs_index` | List the documentation pages of docs.giantswarm.io (llms.txt, no release notes) |
 | `read_docs_url` | Read one docs.giantswarm.io page |
 | `read_handbook_url` | Read one handbook.giantswarm.io page |
 | `read_intranet_url` | Read one intranet.giantswarm.io page. **Requires authentication.** |
 
-Tool descriptions lead with a summary line of at most 120 runes, built with `tooldesc.Describe` from [mcp-toolkit](https://github.com/giantswarm/mcp-toolkit); `TestToolDescriptions` holds them to its budgets and `TestToolsDocIsCurrent` keeps `docs/tools.md` current (`TOOLS_DOC_UPDATE=1` rewrites it).
+Tool descriptions lead with a summary line of at most 120 runes, built with `tooldesc.Describe` from [mcp-toolkit](https://github.com/giantswarm/mcp-toolkit); `TestToolDescriptions` holds them to its budgets and `TestToolsDocIsCurrent` keeps `docs/tools.md` current (`make tools-doc` rewrites it).
 
 ## Authentication
 
-The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks, ops recipes).
+The MCP server supports OAuth 2.1 authentication for accessing Giant Swarm's internal resources (intranet, runbooks).
 
 ### Quick Start
 
@@ -176,16 +175,15 @@ The gateway forwards the caller's bearer token (muster `forwardToken`, or a toke
 ### What Requires Authentication?
 
 - ✅ **Public tools** (no auth required):
-  - `read_docs_index` - Get index of public documentation pages
-  - `read_docs_url` - Read public documentation pages
-  - `read_handbook_url` - Read public handbook pages
-  - `search_docs` - Search public documentation
-  - `search` - Search public documentation
+  - `read_docs_index` - List the documentation pages of docs.giantswarm.io
+  - `read_docs_url` - Read one documentation page
+  - `read_handbook_url` - Read one handbook page
+  - `search_docs` - Search only the public documentation
+  - `search` - Search docs, release notes, handbook and blog posts; with sign-in also the intranet
 
 - 🔒 **Intranet tools** (authentication required):
   - `read_intranet_url` - Read intranet pages
   - `search_runbook` - Search DevOps runbooks
-  - `search_ops_recipe` - Search ops recipes
 
 A server over streamable HTTP without `OAUTH_ISSUER_URL` or `FORWARDED_TOKEN_ISSUER_URL` does not advertise the intranet tools; over stdio they stay and explain how to configure OAuth.
 

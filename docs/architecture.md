@@ -42,7 +42,7 @@ search-mcp/
 - **internal/search**: Core search functionality (not importable by external packages)
   - `Server`: MCP server lifecycle management
   - `Client`: HTTP client for search API and URL fetching
-  - Tool handlers: Implement the 5 MCP tools (search, search_runbook, search_ops_recipe, read_handbook_url, read_intranet_url)
+  - Tool handlers: Implement the MCP tools (`docs/tools.md` lists them)
 
 ### 3. Search Backend
 

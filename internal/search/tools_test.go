@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,35 +22,146 @@ import (
 	"github.com/giantswarm/search-mcp/internal/metrics"
 )
 
-var intranetTools = []string{"search_runbook", "search_ops_recipe", "read_intranet_url"}
+var intranetTools = []string{"search_runbook", "read_intranet_url"}
 
-func newTestServer(transport string) *server.MCPServer {
+func newTestServer(transport string, authMgr auth.AuthManager) *server.MCPServer {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	s := server.NewMCPServer("test", "0.0.0", server.WithToolCapabilities(false))
-	RegisterTools(s, NewClient(logger), nil, nil, transport, logger, metrics.NewNoopCollector())
+	RegisterTools(s, NewClient(logger), authMgr, nil, transport, logger, metrics.NewNoopCollector())
 	return s
 }
 
-func registeredTools(t *testing.T, transport string) map[string]*server.ServerTool {
-	t.Helper()
-	return newTestServer(transport).ListTools()
-}
+// signInConfigured stands in for the OAUTH_* login; the tests only register
+// tools with it.
+type signInConfigured struct{ auth.AuthManager }
 
-// Over stdio every tool is registered, the intranet ones included.
+// The servers the tests read from, each built once: with sign-in configured
+// every tool is registered and search promises the intranet; over stdio
+// without it the intranet tools stay but search doesn't; over HTTP without it
+// only the public tools are offered.
+var (
+	signInServer = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStdio, signInConfigured{}) })
+	stdioServer  = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStdio, nil) })
+	httpServer   = sync.OnceValue(func() *server.MCPServer { return newTestServer(transportStreamableHTTP, nil) })
+)
+
 func TestToolDescriptions(t *testing.T) {
-	if err := tooldesc.CheckServer(newTestServer(transportStdio), tooldesc.DefaultBudget); err != nil {
-		t.Fatal(err)
+	for name, s := range map[string]*server.MCPServer{"with sign-in": signInServer(), "stdio": stdioServer(), "HTTP": httpServer()} {
+		if err := tooldesc.CheckServer(s, tooldesc.DefaultBudget); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }
 
 func TestToolsDocIsCurrent(t *testing.T) {
-	tooldesctest.AssertServerDoc(t, newTestServer(transportStdio),
-		"# Tools\n\nGenerated from the registered tools: run `TOOLS_DOC_UPDATE=1 go test ./internal/search/ -run TestToolsDocIsCurrent` to update.",
+	var public []string
+	for name := range httpServer().ListTools() {
+		public = append(public, name)
+	}
+	sort.Strings(public)
+	tooldesctest.AssertServerDoc(t, signInServer(),
+		"# Tools\n\nGenerated from the registered tools (`make tools-doc`) of a server with sign-in configured. "+
+			"Without sign-in configured, `search`'s description leaves out the intranet; over HTTP without OAuth or forwarded tokens "+
+			"only these are offered: `"+strings.Join(public, "`, `")+"`.",
 		"../../docs/tools.md")
 }
 
+// The docs page shows search as a server with sign-in configured describes it;
+// without sign-in, its description must not promise the intranet.
+func TestSearchWithoutSignInLeavesOutTheIntranet(t *testing.T) {
+	for name, s := range map[string]*server.MCPServer{"stdio": stdioServer(), "HTTP": httpServer()} {
+		tool := s.GetTool("search")
+		if tool == nil {
+			t.Fatalf("%s: search not registered", name)
+		}
+		d := tool.Tool.Description
+		if strings.Contains(strings.ToLower(d), "intranet") {
+			t.Errorf("%s: search promises the intranet without sign-in configured: %q", name, d)
+		}
+		if !strings.Contains(d, releaseNotesHint) {
+			t.Errorf("%s: search lost the release notes hint: %q", name, d)
+		}
+	}
+}
+
+func TestToolsAreReadOnly(t *testing.T) {
+	for name, st := range signInServer().ListTools() {
+		a := st.Tool.Annotations
+		if a.ReadOnlyHint == nil || !*a.ReadOnlyHint {
+			t.Errorf("%s is not annotated read-only", name)
+		}
+		if a.DestructiveHint == nil || *a.DestructiveHint {
+			t.Errorf("%s is annotated destructive", name)
+		}
+		if a.IdempotentHint == nil || !*a.IdempotentHint {
+			t.Errorf("%s is not annotated idempotent", name)
+		}
+	}
+}
+
+// queryRecorder answers every search with no hits and keeps the query sent.
+type queryRecorder struct{ body string }
+
+func (r *queryRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	b, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	r.body = string(b)
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": {"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"hits":{"total":{"value":0},"hits":[]}}`)),
+		Request:    req,
+	}, nil
+}
+
+// TestSearchTermsAreNotStrictByDefault: agents send many terms, and strict AND
+// matching left out relevant results (#111).
+func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
+	const why = "agents send many terms, and strict AND matching left out relevant results"
+	recorder := &queryRecorder{}
+	client := NewClient(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client.httpClient = &http.Client{Transport: recorder}
+	handlers := map[string]server.ToolHandlerFunc{
+		"search":         searchHandler(client),
+		"search_docs":    searchDocsHandler(client),
+		"search_runbook": searchRunbookHandler(client),
+	}
+	for name, handler := range handlers {
+		request := mcp.CallToolRequest{}
+		request.Params.Name = name
+		request.Params.Arguments = map[string]any{paramTerm: "two terms"}
+		result, err := handler(context.Background(), request)
+		if err != nil || result.IsError {
+			t.Fatalf("%s: %v %v", name, err, result)
+		}
+		if !strings.Contains(recorder.body, "multi_match") || strings.Contains(recorder.body, "simple_query_string") {
+			t.Errorf("%s without require_all_terms is not ranked by similarity (#111: %s): %s", name, why, recorder.body)
+		}
+
+		tool := signInServer().GetTool(name)
+		if tool == nil {
+			t.Fatalf("%s not registered", name)
+		}
+		props := tool.Tool.InputSchema.Properties
+		if prop, ok := props[paramRequireAllTerms].(map[string]interface{}); !ok || prop[schemaKeyDefault] != false {
+			t.Errorf("%s.%s must default to false (#111: %s)", name, paramRequireAllTerms, why)
+		}
+		for param, fact := range map[string]string{paramTerm: "ranked by similarity", paramRequireAllTerms: "every word"} {
+			prop, ok := props[param].(map[string]interface{})
+			if !ok {
+				t.Fatalf("%s has no parameter %s", name, param)
+			}
+			if d, _ := prop[schemaKeyDescription].(string); !strings.Contains(d, fact) {
+				t.Errorf("%s.%s lost %q from #111: %s", name, param, fact, why)
+			}
+		}
+	}
+}
+
 func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {
-	tools := registeredTools(t, transportStreamableHTTP)
+	tools := httpServer().ListTools()
 	for _, name := range intranetTools {
 		if _, ok := tools[name]; ok {
 			t.Errorf("tool %q is advertised over HTTP without OAuth", name)
@@ -62,7 +175,7 @@ func TestRegisterTools_HTTPWithoutOAuthHidesIntranetTools(t *testing.T) {
 }
 
 func TestRegisterTools_StdioWithoutOAuthKeepsIntranetTools(t *testing.T) {
-	tools := registeredTools(t, transportStdio)
+	tools := stdioServer().ListTools()
 	for _, name := range intranetTools {
 		if _, ok := tools[name]; !ok {
 			t.Errorf("tool %q is missing over stdio", name)
