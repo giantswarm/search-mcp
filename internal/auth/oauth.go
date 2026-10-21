@@ -177,12 +177,12 @@ func (m *Manager) ClearTokens() error {
 
 // InitiateDeviceFlow starts a device authorization flow
 func (m *Manager) InitiateDeviceFlow(ctx context.Context) (*DeviceCodeData, error) {
-	verificationURI := fmt.Sprintf("http://%s/device", m.config.ServerAddr)
-	if m.config.ServerAddr[0] == ':' {
-		verificationURI = fmt.Sprintf("http://localhost%s/device", m.config.ServerAddr)
-	}
+	return m.deviceStore.CreateDeviceCode(serverURL(m.config.ServerAddr) + "/device")
+}
 
-	return m.deviceStore.CreateDeviceCode(verificationURI)
+// LoginURL returns the URL of this server's OAuth login page
+func (m *Manager) LoginURL() string {
+	return serverURL(m.config.ServerAddr) + "/oauth/login"
 }
 
 // PollForToken polls for authorization and returns tokens when available
@@ -219,24 +219,24 @@ func (m *Manager) formatError(err error) error {
 	case ErrTokenNotFound:
 		return fmt.Errorf(
 			"not authenticated: no valid session found\n"+
-				"Please authenticate by visiting: %s/oauth/login\n"+
+				"Please authenticate by visiting: %s\n"+
 				"Or ensure environment variables are set: OAUTH_ISSUER_URL, OAUTH_CLIENT_ID (and optionally OAUTH_CLIENT_SECRET)",
-			m.config.ServerAddr,
+			m.LoginURL(),
 		)
 
 	case ErrTokenExpired:
 		return fmt.Errorf(
 			"authentication expired: your session has timed out\n"+
-				"Please re-authenticate by visiting: %s/oauth/login",
-			m.config.ServerAddr,
+				"Please re-authenticate by visiting: %s",
+			m.LoginURL(),
 		)
 
 	case ErrRefreshFailed:
 		return fmt.Errorf(
 			"token refresh failed: %w\n"+
 				"This may indicate revoked access or network issues.\n"+
-				"Try re-authenticating at: %s/oauth/login",
-			err, m.config.ServerAddr,
+				"Try re-authenticating at: %s",
+			err, m.LoginURL(),
 		)
 
 	default:
@@ -268,7 +268,11 @@ func validateConfig(config Config) error {
 
 // generateRedirectURI creates a redirect URI from server address
 func generateRedirectURI(serverAddr string) string {
-	// Parse server address
+	return serverURL(serverAddr) + "/callback"
+}
+
+// serverURL returns the base URL of the server listening on serverAddr
+func serverURL(serverAddr string) string {
 	if serverAddr == "" {
 		serverAddr = ":8080"
 	}
@@ -279,7 +283,7 @@ func generateRedirectURI(serverAddr string) string {
 		host = "localhost" + host
 	}
 
-	return fmt.Sprintf("http://%s/callback", host)
+	return "http://" + host
 }
 
 // generateRandomState generates a cryptographically secure random state

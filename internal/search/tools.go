@@ -328,21 +328,21 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 			return handler(context.WithValue(ctx, authTokenContextKey, token), request)
 		}
 
+		// Only stdio registers the intranet tools without OAuth configured.
+		if authMgr == nil {
+			return mcp.NewToolResultError(
+				"❌ Authentication not configured\n\n" +
+					"This tool requires authentication to access Giant Swarm intranet.\n\n" +
+					"Please configure the following environment variables:\n" +
+					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
+					"  OAUTH_CLIENT_ID=searchmcp\n" +
+					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
+					"Then restart the server.",
+			), nil
+		}
+
 		// Stdio mode: Use device flow
 		if transport == transportStdio {
-			// Check if auth manager is configured
-			if authMgr == nil {
-				return mcp.NewToolResultError(
-					"❌ Authentication not configured\n\n" +
-						"This tool requires authentication to access Giant Swarm intranet.\n\n" +
-						"Please configure the following environment variables:\n" +
-						"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
-						"  OAUTH_CLIENT_ID=searchmcp\n" +
-						"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
-						"Then restart the server.",
-				), nil
-			}
-
 			// Check if already authenticated
 			if !authMgr.IsAuthenticated() {
 				// Need to initiate device flow
@@ -374,27 +374,13 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 			// Authenticated - proceed with request
 		}
 
-		// Check if auth is configured
-		if authMgr == nil {
-			return mcp.NewToolResultError(
-				"❌ Authentication not configured\n\n" +
-					"This tool requires authentication to access Giant Swarm intranet.\n\n" +
-					"Please configure the following environment variables:\n" +
-					"  OAUTH_ISSUER_URL=https://dex.operations.awsprod.gigantic.io\n" +
-					"  OAUTH_CLIENT_ID=searchmcp\n" +
-					"  OAUTH_CLIENT_SECRET=<your-secret>  (optional)\n\n" +
-					"Then restart the server and authenticate by visiting:\n" +
-					"  http://localhost:8080/oauth/login",
-			), nil
-		}
-
 		// Check if user is authenticated
 		if !authMgr.IsAuthenticated() {
 			return mcp.NewToolResultError(
-				"❌ Authentication required\n\n" +
-					"You need to authenticate before accessing intranet resources.\n\n" +
-					"Please visit: http://localhost:8080/oauth/login\n\n" +
-					"After authenticating, you can use this tool.",
+				fmt.Sprintf("❌ Authentication required\n\n"+
+					"You need to authenticate before accessing intranet resources.\n\n"+
+					"Please visit: %s\n\n"+
+					"After authenticating, you can use this tool.", authMgr.LoginURL()),
 			), nil
 		}
 
@@ -404,7 +390,7 @@ func requireAuth(handler server.ToolHandlerFunc, authMgr auth.AuthManager, forwa
 			return mcp.NewToolResultError(
 				fmt.Sprintf("❌ Authentication failed: %v\n\n"+
 					"Your session may have expired. Please re-authenticate at:\n"+
-					"http://localhost:8080/oauth/login", err),
+					"%s", err, authMgr.LoginURL()),
 			), nil
 		}
 

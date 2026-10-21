@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -275,37 +276,64 @@ func TestRequireAuth_ForwardedTokens(t *testing.T) {
 	}
 }
 
-func TestRequireAuth_WithoutOAuthExplainsSetup(t *testing.T) {
-	for _, transport := range []string{transportStdio, transportStreamableHTTP} {
-		handler := requireAuth(func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			t.Fatalf("%s: handler was reached", transport)
-			return nil, nil
-		}, nil, nil, transport)
-		result, err := handler(context.Background(), mcp.CallToolRequest{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !result.IsError {
-			t.Fatalf("%s: want an error result", transport)
-		}
-		text := result.Content[0].(mcp.TextContent).Text
-		if strings.Contains(text, `\n`) || !strings.Contains(text, "(optional)\n\nThen restart the server") {
-			t.Errorf("%s: line breaks do not render: %q", transport, text)
-		}
+// unreachableHandler stands in for a tool handler that must not run.
+func unreachableHandler(t *testing.T) server.ToolHandlerFunc {
+	return func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		t.Fatal("handler was reached")
+		return nil, nil
 	}
 }
 
-func TestReadDocsURL_RejectsOtherSites(t *testing.T) {
-	request := mcp.CallToolRequest{}
-	request.Params.Arguments = map[string]any{paramURL: "https://handbook.giantswarm.io/docs/"}
-	result, err := readDocsURLHandler(nil)(context.Background(), request)
+func errorText(t *testing.T, result *mcp.CallToolResult, err error) string {
+	t.Helper()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.IsError {
 		t.Fatal("want an error result")
 	}
-	text := result.Content[0].(mcp.TextContent).Text
+	return result.Content[0].(mcp.TextContent).Text
+}
+
+func TestRequireAuth_WithoutOAuthExplainsSetup(t *testing.T) {
+	handler := requireAuth(unreachableHandler(t), nil, nil, transportStdio)
+	result, err := handler(context.Background(), mcp.CallToolRequest{})
+	text := errorText(t, result, err)
+	if strings.Contains(text, `\n`) || !strings.Contains(text, "(optional)\n\nThen restart the server") {
+		t.Errorf("line breaks do not render: %q", text)
+	}
+}
+
+// signedOut is an OAUTH_* login over HTTP that nobody has signed in to.
+type signedOut struct{ auth.AuthManager }
+
+func (signedOut) IsAuthenticated() bool { return false }
+func (signedOut) LoginURL() string      { return "http://127.0.0.1:9090/oauth/login" }
+
+func TestRequireAuth_SignedOutLinksTheServersLogin(t *testing.T) {
+	handler := requireAuth(unreachableHandler(t), signedOut{}, nil, transportStreamableHTTP)
+	result, err := handler(context.Background(), mcp.CallToolRequest{})
+	text := errorText(t, result, err)
+	if !strings.Contains(text, "Please visit: http://127.0.0.1:9090/oauth/login\n") {
+		t.Errorf("error does not link the server's login page: %q", text)
+	}
+}
+
+// refuseRequests fails the test on any request sent.
+type refuseRequests struct{ t *testing.T }
+
+func (r refuseRequests) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.t.Errorf("unexpected request to %s", req.URL)
+	return nil, errors.New("refused")
+}
+
+func TestReadDocsURL_RejectsOtherSites(t *testing.T) {
+	client := NewClient(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client.httpClient = &http.Client{Transport: refuseRequests{t}}
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]any{paramURL: "https://handbook.giantswarm.io/docs/"}
+	result, err := readDocsURLHandler(client)(context.Background(), request)
+	text := errorText(t, result, err)
 	if !strings.Contains(text, "documentation (https://docs.giantswarm.io/)") || strings.Contains(text, "handbook") {
 		t.Errorf("error does not name the docs site: %q", text)
 	}

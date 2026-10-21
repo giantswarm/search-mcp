@@ -195,3 +195,17 @@ func TestTokenData_RefreshThreshold(t *testing.T) {
 		t.Error("Token with <12 minutes should need refresh")
 	}
 }
+
+func TestManager_LoginURL(t *testing.T) {
+	tests := map[string]string{
+		"":               "http://localhost:8080/oauth/login",
+		":9090":          "http://localhost:9090/oauth/login",
+		"127.0.0.1:8081": "http://127.0.0.1:8081/oauth/login",
+	}
+	for addr, want := range tests {
+		m := &Manager{config: Config{ServerAddr: addr}}
+		if got := m.LoginURL(); got != want {
+			t.Errorf("server address %q: login URL %q, want %q", addr, got, want)
+		}
+	}
+}
