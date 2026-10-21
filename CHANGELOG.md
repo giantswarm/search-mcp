@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Build with Go 1.27.3 (`toolchain go1.27.3`), which fixes GO-2026-6809 in the standard library.
 - The browser pages of the OAuth login and the device flow carry the Giant Swarm design, from [pagekit](https://github.com/giantswarm/pagekit): the logo, light and dark mode, and no external requests. Errors that were plain text (a failed `/oauth/login` or `/callback`) are pages too, and they no longer show the internal error, which stays in the log. A refusal at the identity provider (`?error=access_denied`) says so instead of reporting a missing code, and is logged with the provider's error. The device flow's cookie is cleared whatever the callback's outcome, so a later sign-in in the same browser is no longer taken for a device flow. The device-code entry form is unchanged for now.
 - Over streamable HTTP without OAuth configured, the intranet tools (`search_runbook`, `search_ops_recipe`, `read_intranet_url`) are not advertised: a shared server without a login could never serve them. Over stdio they stay and explain how to configure OAuth.
 
