@@ -11,7 +11,7 @@ require (
 	github.com/giantswarm/mcp-toolkit v0.4.5
 	github.com/giantswarm/pagekit v0.3.1
 	github.com/go-jose/go-jose/v4 v4.1.6
-	github.com/mark3labs/mcp-go v1.3.0
+	github.com/mark3labs/mcp-go v1.4.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.37.0
