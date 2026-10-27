@@ -1,6 +1,9 @@
 version: "2"
 
 linters:
+  enable:
+    - gosec
+    - goconst
   exclusions:
     rules:
       # gosec G304 flags any file read whose path is built from a variable.
