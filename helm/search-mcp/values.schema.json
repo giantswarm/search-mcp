@@ -271,6 +271,9 @@
                 "$ref": "#/$defs/_definitions.json/definitions/io.k8s.api.core.v1.EnvFromSource"
             }
         },
+        "externalDNSIP": {
+            "type": "string"
+        },
         "fullnameOverride": {
             "type": "string",
             "description": "Optional: overrides the generated application name completely. Cannot be combined with nameOverride."
@@ -283,8 +286,18 @@
                 "object",
                 "null"
             ],
-            "description": "Global values shared between all subcharts",
-            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key."
+            "description": "Global values shared between all subcharts and the platform.",
+            "additionalProperties": true,
+            "properties": {
+                "podSecurityStandards": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "helm": {
+            "type": "object",
+            "additionalProperties": true
         },
         "image": {
             "type": "object",
@@ -334,6 +347,9 @@
                     }
                 }
             }
+        },
+        "managementCluster": {
+            "type": "string"
         },
         "nameOverride": {
             "type": "string",
