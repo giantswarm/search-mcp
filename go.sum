@@ -17,8 +17,8 @@ github.com/dlclark/regexp2 v1.11.0 h1:G/nrcoOa7ZXlpoa/91N3X7mM3r8eIlMBBJZvsz/mxK
 github.com/dlclark/regexp2 v1.11.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
-github.com/giantswarm/mcp-toolkit v0.4.9 h1:bvVcYkW6n5t78Xz0R5zc2YeSg1wvbSWm59Ek+L4MjNw=
-github.com/giantswarm/mcp-toolkit v0.4.9/go.mod h1:FdaXc8FZ7I1eEcS1OsT7/wK1F+VcqYnMVyP19T4OeGU=
+github.com/giantswarm/mcp-toolkit v0.4.10 h1:aSnO1XDhx6beCQIKoqLnH1sgWY+K9jqvC3BQ/x9ieOE=
+github.com/giantswarm/mcp-toolkit v0.4.10/go.mod h1:FdaXc8FZ7I1eEcS1OsT7/wK1F+VcqYnMVyP19T4OeGU=
 github.com/giantswarm/pagekit v0.3.5 h1:NygF5vL+QOad5RsLe/jzASKCajxS0WFJ0wAsucdgXB4=
 github.com/giantswarm/pagekit v0.3.5/go.mod h1:bXMRzjARa/TewLywz4naTh8YsGzbfSLUoGlEfM92oPQ=
 github.com/go-jose/go-jose/v4 v4.1.8 h1:k38WifTutpGuqt6Imq9xW1OgCvnWFri0Nz7FnfiACM8=
