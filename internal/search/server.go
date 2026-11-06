@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/giantswarm/mcp-toolkit/brand"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/giantswarm/pagekit"
@@ -70,6 +71,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 		"giantswarm-search",
 		"0.1.0",
 		server.WithLogging(),
+		brand.WithGiantSwarmIcon(),
 	)
 
 	// Create search client
