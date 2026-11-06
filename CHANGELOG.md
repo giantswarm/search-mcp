@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The server advertises the Giant Swarm logo as its MCP icon (`serverInfo.icons`), so muster and the developer portal show it.
 - Over streamable HTTP, `FORWARDED_TOKEN_ISSUER_URL` and `FORWARDED_TOKEN_AUDIENCE` make a shared server reach the intranet as each caller: it takes the bearer token an MCP gateway forwards with the request, verifies its signature, issuer, audience and expiry, and uses it for that request only, never storing it. The intranet tools are advertised in this mode; a call without a valid token gets an authentication error. Stdio and the `OAUTH_*` login are unchanged.
 
 ### Changed
