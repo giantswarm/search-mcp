@@ -9,7 +9,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/giantswarm/mcp-toolkit v0.5.3
-	github.com/giantswarm/pagekit v0.3.7
+	github.com/giantswarm/pagekit v0.3.8
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/mark3labs/mcp-go v1.5.0
 	github.com/prometheus/client_golang v1.25.0
