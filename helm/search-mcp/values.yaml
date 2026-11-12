@@ -123,9 +123,9 @@ route:
     annotations: {}
     labels: {}
 
-# @schema minimum:1
-# -- Largest MCP request body the server accepts, in bytes; larger ones are answered 413
-maxRequestBodyBytes: 1048576
+# @schema type:[integer, null]; minimum:1
+# -- Largest MCP request body the server accepts, in bytes; larger ones are answered 413. Unset, the server's default of 1 MiB applies.
+maxRequestBodyBytes: null
 
 # -- Resource requests and limits
 resources:

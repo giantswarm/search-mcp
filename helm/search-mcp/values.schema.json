@@ -352,8 +352,11 @@
             "type": "string"
         },
         "maxRequestBodyBytes": {
-            "type": "integer",
-            "description": "Largest MCP request body the server accepts, in bytes; larger ones are answered 413",
+            "type": [
+                "integer",
+                "null"
+            ],
+            "description": "Largest MCP request body the server accepts, in bytes; larger ones are answered 413. Unset, the server's default of 1 MiB applies.",
             "minimum": 1
         },
         "nameOverride": {

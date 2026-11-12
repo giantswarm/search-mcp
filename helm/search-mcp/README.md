@@ -42,7 +42,7 @@ MCP server for access to Giant Swarm documentation and more
 | route.externalDNS | object | `{"target":""}` | External DNS configuration for automatic DNS record creation |
 | route.externalDNS.target | string | `""` | Target hostname for external-dns (e.g., the load balancer hostname). When set, external-dns annotations are added to the HTTPRoute. |
 | route.matches | list | `[{"path":{"type":"PathPrefix","value":"/"}}]` | Request matching rules |
-| maxRequestBodyBytes | int | `1048576` | Largest MCP request body the server accepts, in bytes; larger ones are answered 413 |
+| maxRequestBodyBytes | string | `nil` | Largest MCP request body the server accepts, in bytes; larger ones are answered 413. Unset, the server's default of 1 MiB applies. |
 | resources | object | `{"limits":{"cpu":"100m","memory":"256Mi"},"requests":{"cpu":"20m","memory":"32Mi"}}` | Resource requests and limits |
 | resources.requests | object | `{"cpu":"20m","memory":"32Mi"}` | Resource requests |
 | resources.requests.cpu | string | `"20m"` | CPU requested |
