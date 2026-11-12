@@ -1,2 +1,1 @@
-CVE-2026-108859 until=2026-11-12 # github.com/mark3labs/mcp-go@v1.2.1
 CVE-2026-84445 until=2026-11-27 # google.golang.org/grpc@v1.84.0 since=2026-10-28

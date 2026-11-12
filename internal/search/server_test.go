@@ -23,7 +23,7 @@ func TestServer_ForwardedTokenOverHTTP(t *testing.T) {
 	t.Setenv("FORWARDED_TOKEN_AUDIENCE", "searchmcp")
 	t.Setenv("OAUTH_ISSUER_URL", "")
 
-	srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: "/mcp"})
+	srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestServer_ForwardedTokenOverHTTP(t *testing.T) {
 		t.Helper()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		c, err := client.NewStreamableHttpClient(httpServer.URL+"/mcp", transport.WithHTTPHeaders(headers))
+		c, err := client.NewStreamableHttpClient(httpServer.URL+testEndpoint, transport.WithHTTPHeaders(headers))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,36 +94,58 @@ func TestServer_ForwardedTokenOverHTTP(t *testing.T) {
 	})
 }
 
-// A body beyond the bound is refused, and the endpoint keeps answering.
+// A body beyond the bound is refused with 413, and the endpoint keeps
+// answering; the bound follows the configuration.
 func TestServer_MCPBodyIsBounded(t *testing.T) {
-	t.Setenv("FORWARDED_TOKEN_ISSUER_URL", "")
-	t.Setenv("OAUTH_ISSUER_URL", "")
-	srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: "/mcp"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	httpServer := httptest.NewServer(srv.mcpHandler())
-	t.Cleanup(httpServer.Close)
-	post := func(body string) int {
-		req, err := http.NewRequest(http.MethodPost, httpServer.URL+"/mcp", strings.NewReader(body))
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Accept", "application/json, text/event-stream")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = resp.Body.Close()
-		return resp.StatusCode
-	}
+	for _, tc := range []struct {
+		name  string
+		limit int64
+		want  int64
+	}{
+		{name: "default", limit: 0, want: DefaultMaxRequestBodyBytes},
+		{name: "configured", limit: 4096, want: 4096},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("FORWARDED_TOKEN_ISSUER_URL", "")
+			t.Setenv("OAUTH_ISSUER_URL", "")
+			srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: tc.limit})
+			if err != nil {
+				t.Fatal(err)
+			}
+			httpServer := httptest.NewServer(srv.mcpHandler())
+			t.Cleanup(httpServer.Close)
+			post := func(body string) int {
+				req, err := http.NewRequest(http.MethodPost, httpServer.URL+testEndpoint, strings.NewReader(body))
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Accept", "application/json, text/event-stream")
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_ = resp.Body.Close()
+				return resp.StatusCode
+			}
 
-	big := `{"jsonrpc":"2.0","id":1,"method":"ping","params":{"pad":"` + strings.Repeat("x", maxMCPBodyBytes) + `"}}`
-	if got := post(big); got < 400 {
-		t.Errorf("oversized body: status %d, want an error", got)
-	}
-	if got := post(`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`); got != http.StatusOK {
-		t.Errorf("initialize: status %d, want 200", got)
+			big := `{"jsonrpc":"2.0","id":1,"method":"ping","params":{"pad":"` + strings.Repeat("x", int(tc.want)) + `"}}`
+			if got := post(big); got != http.StatusRequestEntityTooLarge {
+				t.Errorf("oversized body: status %d, want 413", got)
+			}
+			if got := post(`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`); got != http.StatusOK {
+				t.Errorf("initialize: status %d, want 200", got)
+			}
+		})
 	}
 }
+
+// A negative bound would switch it off, so it is refused.
+func TestNewServer_RefusesNegativeBodyBound(t *testing.T) {
+	if _, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: -1}); err == nil {
+		t.Error("NewServer accepted a negative body bound")
+	}
+}
+
+// testEndpoint is the MCP endpoint path the tests serve.
+const testEndpoint = "/mcp"

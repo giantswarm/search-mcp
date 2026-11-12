@@ -41,6 +41,8 @@ spec:
         args:
           - --transport
           - streamable-http
+          - --max-request-body-bytes
+          - {{ .Values.maxRequestBodyBytes | int64 | quote }}
         {{- with .Values.env }}
         env:
           {{- toYaml . | nindent 10 }}

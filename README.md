@@ -87,6 +87,9 @@ search-mcp serve
 # Run with HTTP transport
 search-mcp serve --transport=streamable-http --http-addr=:8080
 
+# Bound MCP request bodies at 512 KiB (default 1 MiB; larger ones get 413)
+search-mcp serve --transport=streamable-http --max-request-body-bytes=524288
+
 # Run with debug logging
 search-mcp serve --debug
 
