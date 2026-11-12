@@ -87,6 +87,9 @@ search-mcp serve
 # Run with HTTP transport
 search-mcp serve --transport=streamable-http --http-addr=:8080
 
+# Bound MCP request bodies at 512 KiB (default 1 MiB; larger ones get 413)
+search-mcp serve --transport=streamable-http --max-request-body-bytes=524288
+
 # Run with debug logging
 search-mcp serve --debug
 
@@ -205,6 +208,7 @@ For more details, see [Authentication Guide](docs/authentication.md).
 - `--transport`: Transport type - `stdio` or `streamable-http` (default: `stdio`)
 - `--http-addr`: HTTP server address (default: `:8080`)
 - `--http-endpoint`: HTTP endpoint path (default: `/mcp`)
+- `--max-request-body-bytes`: Largest MCP request body accepted over streamable HTTP, in bytes; larger ones get 413 (default: `1048576`, at least 1)
 - `--debug`: Enable debug logging
 - `--version`: Show version information
 

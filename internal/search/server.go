@@ -35,6 +35,10 @@ type ServerConfig struct {
 	HTTPAddr     string
 	HTTPEndpoint string
 	Debug        bool
+
+	// MaxRequestBodyBytes bounds an MCP request body over streamable HTTP;
+	// a larger one is answered 413. It must be at least 1 with that transport.
+	MaxRequestBodyBytes int64
 }
 
 // Server wraps the MCP server with our search functionality
@@ -50,6 +54,11 @@ type Server struct {
 
 // NewServer creates a new search MCP server
 func NewServer(config ServerConfig) (*Server, error) {
+	// mcp-go treats a bound of zero or less as no bound at all.
+	if config.Transport == transportStreamableHTTP && config.MaxRequestBodyBytes < 1 {
+		return nil, fmt.Errorf("max request body bytes must be at least 1, got %d", config.MaxRequestBodyBytes)
+	}
+
 	// Setup logger
 	logLevel := slog.LevelInfo
 	if config.Debug {
@@ -274,27 +283,29 @@ func (s *Server) startHTTP(ctx context.Context) error {
 // streamableHTTPServer serves MCP over streamable HTTP; with forwarded tokens,
 // each request's bearer token reaches its tool calls.
 func (s *Server) streamableHTTPServer() *server.StreamableHTTPServer {
-	options := []server.StreamableHTTPOption{server.WithEndpointPath(s.config.HTTPEndpoint)}
+	options := []server.StreamableHTTPOption{
+		server.WithEndpointPath(s.config.HTTPEndpoint),
+		server.WithMaxRequestBodyBytes(s.config.MaxRequestBodyBytes),
+	}
 	if s.forwarded != nil {
 		options = append(options, server.WithHTTPContextFunc(withForwardedToken))
 	}
 	return server.NewStreamableHTTPServer(s.mcpServer, options...)
 }
 
-// maxMCPBodyBytes bounds an MCP request body. mcp-go reads a POST body whole
-// before validating it (CVE-2026-108859); the bound keeps that read small.
-const maxMCPBodyBytes = 1 << 20
+// DefaultMCPRequestBodyBytes is the default of the MCP request body bound,
+// below mcp-go's own default of 4 MiB.
+const DefaultMCPRequestBodyBytes int64 = 1 << 20
 
-// mcpHandler serves the MCP endpoint with connection logging and metrics,
-// every request body bounded at maxMCPBodyBytes.
+// mcpHandler serves the MCP endpoint with connection logging and metrics.
 func (s *Server) mcpHandler() http.Handler {
 	mcpHTTPServer := s.streamableHTTPServer()
-	return http.MaxBytesHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.logger.Debug("new HTTP streamable connection", "method", r.Method, "remote", r.RemoteAddr)
 		s.metrics.RecordSSEConnection()
 		defer s.metrics.RecordSSEDisconnection()
 		mcpHTTPServer.ServeHTTP(w, r)
-	}), maxMCPBodyBytes)
+	})
 }
 
 // deviceLookup finds a pending device flow by the code the person entered.

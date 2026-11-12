@@ -351,6 +351,14 @@
         "managementCluster": {
             "type": "string"
         },
+        "maxRequestBodyBytes": {
+            "type": [
+                "integer",
+                "null"
+            ],
+            "description": "Largest MCP request body the server accepts, in bytes; larger ones are answered 413. Unset, the server's default of 1 MiB applies.",
+            "minimum": 1
+        },
         "nameOverride": {
             "type": "string",
             "description": "Optional: overrides for the generated application name, but will be suffixed with the release name."

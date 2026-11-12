@@ -23,6 +23,7 @@ func init() {
 	serveCmd.Flags().StringVar(&transport, "transport", "stdio", "Transport type: stdio or streamable-http")
 	serveCmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP server address (for streamable-http transport)")
 	serveCmd.Flags().StringVar(&httpEndpoint, "http-endpoint", "/mcp", "HTTP endpoint path (for streamable-http transport)")
+	serveCmd.Flags().Int64Var(&maxRequestBodyBytes, "max-request-body-bytes", search.DefaultMCPRequestBodyBytes, "Largest MCP request body accepted, in bytes; larger ones get 413 (for streamable-http transport)")
 	serveCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging")
 }
 
@@ -33,6 +34,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 		HTTPAddr:     httpAddr,
 		HTTPEndpoint: httpEndpoint,
 		Debug:        debug,
+
+		MaxRequestBodyBytes: maxRequestBodyBytes,
 	}
 
 	// Create and start server
