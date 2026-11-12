@@ -2,8 +2,10 @@ package search
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +25,7 @@ func TestServer_ForwardedTokenOverHTTP(t *testing.T) {
 	t.Setenv("FORWARDED_TOKEN_AUDIENCE", "searchmcp")
 	t.Setenv("OAUTH_ISSUER_URL", "")
 
-	srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint})
+	srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: DefaultMCPRequestBodyBytes})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,28 +96,27 @@ func TestServer_ForwardedTokenOverHTTP(t *testing.T) {
 	})
 }
 
-// A body beyond the bound is refused with 413, and the endpoint keeps
-// answering; the bound follows the configuration.
+// A body beyond the bound is refused with 413, whether its length is
+// declared or not; a body of exactly the bound is not, and the endpoint keeps
+// answering.
 func TestServer_MCPBodyIsBounded(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		limit int64
-		want  int64
-	}{
-		{name: "default", limit: 0, want: DefaultMaxRequestBodyBytes},
-		{name: "configured", limit: 4096, want: 4096},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, limit := range []int64{DefaultMCPRequestBodyBytes, 4096} {
+		t.Run(strconv.FormatInt(limit, 10), func(t *testing.T) {
 			t.Setenv("FORWARDED_TOKEN_ISSUER_URL", "")
 			t.Setenv("OAUTH_ISSUER_URL", "")
-			srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: tc.limit})
+			srv, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: limit})
 			if err != nil {
 				t.Fatal(err)
 			}
 			httpServer := httptest.NewServer(srv.mcpHandler())
 			t.Cleanup(httpServer.Close)
-			post := func(body string) int {
-				req, err := http.NewRequest(http.MethodPost, httpServer.URL+testEndpoint, strings.NewReader(body))
+			// post sends body; with unknownLength, without a Content-Length.
+			post := func(body string, unknownLength bool) int {
+				var r io.Reader = strings.NewReader(body)
+				if unknownLength {
+					r = struct{ io.Reader }{r}
+				}
+				req, err := http.NewRequest(http.MethodPost, httpServer.URL+testEndpoint, r)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -128,22 +129,39 @@ func TestServer_MCPBodyIsBounded(t *testing.T) {
 				_ = resp.Body.Close()
 				return resp.StatusCode
 			}
-
-			big := `{"jsonrpc":"2.0","id":1,"method":"ping","params":{"pad":"` + strings.Repeat("x", int(tc.want)) + `"}}`
-			if got := post(big); got != http.StatusRequestEntityTooLarge {
-				t.Errorf("oversized body: status %d, want 413", got)
+			// ping returns a ping request of exactly n bytes.
+			ping := func(n int) string {
+				const prefix, suffix = `{"jsonrpc":"2.0","id":1,"method":"ping","params":{"pad":"`, `"}}`
+				return prefix + strings.Repeat("x", n-len(prefix)-len(suffix)) + suffix
 			}
-			if got := post(`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`); got != http.StatusOK {
+
+			for _, unknownLength := range []bool{false, true} {
+				if got := post(ping(int(limit)+1), unknownLength); got != http.StatusRequestEntityTooLarge {
+					t.Errorf("body one byte over the bound (unknown length %t): status %d, want 413", unknownLength, got)
+				}
+				if got := post(ping(int(limit)), unknownLength); got == http.StatusRequestEntityTooLarge {
+					t.Errorf("body of exactly the bound (unknown length %t): status 413", unknownLength)
+				}
+			}
+			if got := post(`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`, false); got != http.StatusOK {
 				t.Errorf("initialize: status %d, want 200", got)
 			}
 		})
 	}
 }
 
-// A negative bound would switch it off, so it is refused.
-func TestNewServer_RefusesNegativeBodyBound(t *testing.T) {
-	if _, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: -1}); err == nil {
-		t.Error("NewServer accepted a negative body bound")
+// A bound below 1 would switch it off over streamable HTTP, so it is refused
+// there; stdio does not use it.
+func TestNewServer_BodyBoundBelowOne(t *testing.T) {
+	t.Setenv("FORWARDED_TOKEN_ISSUER_URL", "")
+	t.Setenv("OAUTH_ISSUER_URL", "")
+	for _, limit := range []int64{0, -1} {
+		if _, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: limit}); err == nil {
+			t.Errorf("streamable-http accepted a body bound of %d", limit)
+		}
+		if _, err := NewServer(ServerConfig{Transport: "stdio", MaxRequestBodyBytes: limit}); err != nil {
+			t.Errorf("stdio refused a body bound of %d: %v", limit, err)
+		}
 	}
 }
 

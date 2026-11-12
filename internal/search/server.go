@@ -37,7 +37,7 @@ type ServerConfig struct {
 	Debug        bool
 
 	// MaxRequestBodyBytes bounds an MCP request body over streamable HTTP;
-	// a larger one is answered 413. Zero means DefaultMaxRequestBodyBytes.
+	// a larger one is answered 413. It must be at least 1 with that transport.
 	MaxRequestBodyBytes int64
 }
 
@@ -54,9 +54,9 @@ type Server struct {
 
 // NewServer creates a new search MCP server
 func NewServer(config ServerConfig) (*Server, error) {
-	// mcp-go reads a body whole without a bound, so none is refused.
-	if config.MaxRequestBodyBytes < 0 {
-		return nil, fmt.Errorf("max request body bytes must not be negative, got %d", config.MaxRequestBodyBytes)
+	// mcp-go treats a bound of zero or less as no bound at all.
+	if config.Transport == transportStreamableHTTP && config.MaxRequestBodyBytes < 1 {
+		return nil, fmt.Errorf("max request body bytes must be at least 1, got %d", config.MaxRequestBodyBytes)
 	}
 
 	// Setup logger
@@ -285,7 +285,7 @@ func (s *Server) startHTTP(ctx context.Context) error {
 func (s *Server) streamableHTTPServer() *server.StreamableHTTPServer {
 	options := []server.StreamableHTTPOption{
 		server.WithEndpointPath(s.config.HTTPEndpoint),
-		server.WithMaxRequestBodyBytes(s.maxRequestBodyBytes()),
+		server.WithMaxRequestBodyBytes(s.config.MaxRequestBodyBytes),
 	}
 	if s.forwarded != nil {
 		options = append(options, server.WithHTTPContextFunc(withForwardedToken))
@@ -293,17 +293,9 @@ func (s *Server) streamableHTTPServer() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.mcpServer, options...)
 }
 
-// DefaultMaxRequestBodyBytes is the MCP request body bound when none is
-// configured.
-const DefaultMaxRequestBodyBytes int64 = 1 << 20
-
-// maxRequestBodyBytes is the configured MCP request body bound.
-func (s *Server) maxRequestBodyBytes() int64 {
-	if s.config.MaxRequestBodyBytes == 0 {
-		return DefaultMaxRequestBodyBytes
-	}
-	return s.config.MaxRequestBodyBytes
-}
+// DefaultMCPRequestBodyBytes is the default of the MCP request body bound,
+// below mcp-go's own default of 4 MiB.
+const DefaultMCPRequestBodyBytes int64 = 1 << 20
 
 // mcpHandler serves the MCP endpoint with connection logging and metrics.
 func (s *Server) mcpHandler() http.Handler {

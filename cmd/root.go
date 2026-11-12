@@ -39,7 +39,7 @@ func init() {
 	rootCmd.Flags().StringVar(&transport, "transport", "stdio", "Transport type: stdio or streamable-http")
 	rootCmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP server address (for streamable-http transport)")
 	rootCmd.Flags().StringVar(&httpEndpoint, "http-endpoint", "/mcp", "HTTP endpoint path (for streamable-http transport)")
-	rootCmd.Flags().Int64Var(&maxRequestBodyBytes, "max-request-body-bytes", search.DefaultMaxRequestBodyBytes, "Largest MCP request body accepted, in bytes; larger ones get 413 (for streamable-http transport)")
+	rootCmd.Flags().Int64Var(&maxRequestBodyBytes, "max-request-body-bytes", search.DefaultMCPRequestBodyBytes, "Largest MCP request body accepted, in bytes; larger ones get 413 (for streamable-http transport)")
 	rootCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging")
 }
 

@@ -208,6 +208,7 @@ For more details, see [Authentication Guide](docs/authentication.md).
 - `--transport`: Transport type - `stdio` or `streamable-http` (default: `stdio`)
 - `--http-addr`: HTTP server address (default: `:8080`)
 - `--http-endpoint`: HTTP endpoint path (default: `/mcp`)
+- `--max-request-body-bytes`: Largest MCP request body accepted over streamable HTTP, in bytes; larger ones get 413 (default: `1048576`, at least 1)
 - `--debug`: Enable debug logging
 - `--version`: Show version information
 
