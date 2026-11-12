@@ -159,7 +159,7 @@ func TestNewServer_BodyBoundBelowOne(t *testing.T) {
 		if _, err := NewServer(ServerConfig{Transport: transportStreamableHTTP, HTTPEndpoint: testEndpoint, MaxRequestBodyBytes: limit}); err == nil {
 			t.Errorf("streamable-http accepted a body bound of %d", limit)
 		}
-		if _, err := NewServer(ServerConfig{Transport: "stdio", MaxRequestBodyBytes: limit}); err != nil {
+		if _, err := NewServer(ServerConfig{Transport: transportStdio, MaxRequestBodyBytes: limit}); err != nil {
 			t.Errorf("stdio refused a body bound of %d: %v", limit, err)
 		}
 	}
