@@ -57,7 +57,7 @@ The Go implementation uses the standard `net/http` package which:
 
 ### Endpoints
 
-- **Public endpoint** (`docs.giantswarm.io/searchapi/`): No authentication required
+- **Public endpoint** (`docs.giantswarm.io/searchapi/`): No authentication required. A search gateway that takes only query parameters, never a query body.
 - **Handbook** (`handbook.giantswarm.io`): Public access
 - **Intranet** (`intranet.giantswarm.io`): May require authentication (not currently supported)
 

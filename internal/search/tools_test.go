@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -23,7 +24,10 @@ import (
 	"github.com/giantswarm/search-mcp/internal/metrics"
 )
 
-var intranetTools = []string{"search_runbook", "read_intranet_url"}
+// runbookTool searches only the intranet, so it never uses the public gateway.
+const runbookTool = "search_runbook"
+
+var intranetTools = []string{runbookTool, "read_intranet_url"}
 
 func newTestServer(transport string, authMgr auth.AuthManager) *server.MCPServer {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -100,15 +104,22 @@ func TestToolsAreReadOnly(t *testing.T) {
 	}
 }
 
-// queryRecorder answers every search with no hits and keeps the query sent.
-type queryRecorder struct{ body string }
+// queryRecorder answers every search with no hits and keeps the query sent:
+// the body of a signed-in search, the query parameters of a public one.
+type queryRecorder struct {
+	body  string
+	query url.Values
+}
 
 func (r *queryRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
-	b, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
+	r.body, r.query = "", req.URL.Query()
+	if req.Body != nil {
+		b, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		r.body = string(b)
 	}
-	r.body = string(b)
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": {"application/json"}},
@@ -125,20 +136,30 @@ func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
 	client := NewClient(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	client.httpClient = &http.Client{Transport: recorder}
 	handlers := map[string]server.ToolHandlerFunc{
-		"search":         searchHandler(client),
-		"search_docs":    searchDocsHandler(client),
-		"search_runbook": searchRunbookHandler(client),
+		"search":      searchHandler(client),
+		"search_docs": searchDocsHandler(client),
+		runbookTool:   searchRunbookHandler(client),
 	}
+	signedIn := context.WithValue(context.Background(), authTokenContextKey, "token")
 	for name, handler := range handlers {
 		request := mcp.CallToolRequest{}
 		request.Params.Name = name
 		request.Params.Arguments = map[string]any{paramTerm: "two terms"}
-		result, err := handler(context.Background(), request)
+		result, err := handler(signedIn, request)
 		if err != nil || result.IsError {
 			t.Fatalf("%s: %v %v", name, err, result)
 		}
 		if !strings.Contains(recorder.body, "multi_match") || strings.Contains(recorder.body, "simple_query_string") {
 			t.Errorf("%s without require_all_terms is not ranked by similarity (#111: %s): %s", name, why, recorder.body)
+		}
+		if name != runbookTool {
+			result, err = handler(context.Background(), request)
+			if err != nil || result.IsError {
+				t.Fatalf("%s without sign-in: %v %v", name, err, result)
+			}
+			if recorder.query.Has("match") {
+				t.Errorf("%s without sign-in and require_all_terms asks for match=%s (#111: %s)", name, recorder.query.Get("match"), why)
+			}
 		}
 
 		tool := signInServer().GetTool(name)
