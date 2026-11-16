@@ -6,7 +6,7 @@ toolchain go1.27.4
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
-	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/PuerkitoBio/goquery v1.14.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/giantswarm/mcp-toolkit v0.5.3
 	github.com/giantswarm/pagekit v0.3.8
@@ -19,7 +19,7 @@ require (
 
 require (
 	github.com/JohannesKaufmann/dom v0.3.1 // indirect
-	github.com/andybalholm/cascadia v1.3.4 // indirect
+	github.com/andybalholm/cascadia v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
