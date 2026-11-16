@@ -533,6 +533,10 @@ jobs:
           client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
           permission-contents: write
+          # A stable tag lands on the candidate commit; when .github/workflows
+          # changed on main since, GitHub only lets an App create that ref with
+          # the workflows permission (giantswarm/giantswarm#39230).
+          permission-workflows: write
 
       # Create the tag AND the GitHub Release in one atomic API call. GitHub's
       # release-create endpoint accepts a tag_name + target_commitish and, if
