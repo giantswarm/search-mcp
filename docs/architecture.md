@@ -14,7 +14,9 @@ The server uses the public search endpoint:
 
 - **Public endpoint**: `https://docs.giantswarm.io/searchapi/`
   - No authentication required
-  - Provides access to public documentation sources (docs, blog, etc.)
+  - Provides access to public documentation sources (docs, handbook, blog)
+  - A search gateway: it takes only query parameters (`q`, `type`, `breadcrumb`, `from`, `size`, `match`), builds the OpenSearch query itself and refuses request bodies. Limits: `q` up to 200 characters, 5 breadcrumb segments, `size` up to 50, `from` up to 1000.
+- **Intranet endpoint**: `https://intranet-searchmcp.giantswarm.io/searchapi/`, used only with a sign-in token. It takes an OpenSearch query in the request body.
   - Powered by OpenSearch v3.2
 
 ### 2. Package Structure
@@ -48,7 +50,7 @@ search-mcp/
 
 The search functionality is powered by OpenSearch v3.2:
 
-- Uses OpenSearch query DSL (Elasticsearch-compatible) with `function_score`
+- Signed-in searches send OpenSearch query DSL with `function_score` to the intranet endpoint. Public searches send the same choices as query parameters, and the gateway builds an equivalent query.
 - Two query modes, controlled by the `require_all_terms` parameter:
   - **Default (similarity mode):** Uses `multi_match` with `best_fields`, `operator: "or"`, and `minimum_should_match: "30%"`. Documents are ranked by relevance without requiring all terms to match. Best for longer, multi-term queries from AI agents.
   - **Strict AND mode (`require_all_terms: true`):** Uses `simple_query_string` with `default_operator: "AND"`. All search terms must be present in matching documents.
@@ -115,9 +117,8 @@ tools.go: searchHandler()
     ↓
 client.go: Client.Search()
     ↓
-Build Elasticsearch query
-    ↓
-POST https://docs.giantswarm.io/searchapi/
+Signed in: build an OpenSearch query and POST it to the intranet endpoint
+Public: GET https://docs.giantswarm.io/searchapi/?q=…&type=…
     ↓
 Parse JSON response
     ↓
@@ -168,8 +169,8 @@ Return formatted content
    - Results formatted as Markdown
 
 4. **Search execution**
-   - Build OpenSearch query with filters
-   - POST to search API
+   - Signed in: build an OpenSearch query with filters and POST it to the intranet search API
+   - Public: send the term and filters as query parameters to the public search gateway
    - Parse JSON response (handles both ES 6.x and OpenSearch 7.x+ formats)
    - Extract hits, highlights, metadata
    - Format as Markdown with titles, URLs, excerpts

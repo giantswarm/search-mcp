@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -18,6 +20,15 @@ const (
 	intranetSearchEndpoint = "https://intranet-searchmcp.giantswarm.io/searchapi/"
 	searchTimeout          = 30 * time.Second
 	fetchTimeout           = 60 * time.Second
+)
+
+// Limits of the public search gateway at docs.giantswarm.io/searchapi/. It
+// refuses requests outside them.
+const (
+	publicMaxSize        = 50
+	publicMaxStartIndex  = 1000
+	publicMaxBreadcrumbs = 5
+	publicMaxTermLength  = 200
 )
 
 // Elasticsearch query keys and field names reused across query construction.
@@ -34,8 +45,10 @@ const (
 
 // Client handles search operations
 type Client struct {
-	httpClient *http.Client
-	logger     *slog.Logger
+	httpClient       *http.Client
+	logger           *slog.Logger
+	publicEndpoint   string
+	intranetEndpoint string
 }
 
 // NewClient creates a new search client
@@ -44,46 +57,89 @@ func NewClient(logger *slog.Logger) *Client {
 		httpClient: &http.Client{
 			Timeout: searchTimeout,
 		},
-		logger: logger,
+		logger:           logger,
+		publicEndpoint:   publicSearchEndpoint,
+		intranetEndpoint: intranetSearchEndpoint,
 	}
 }
 
-// Search performs a search query against the Giant Swarm documentation
+// Search performs a search query against the Giant Swarm documentation.
+// With a sign-in token it sends an OpenSearch query to the intranet endpoint.
+// Without one it uses the public search gateway, which takes only a few
+// query parameters and never a query body.
 func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
-	// Build Elasticsearch/OpenSearch query
-	query := c.buildQuery(req)
+	token, _ := ctx.Value(authTokenContextKey).(string)
+	if token == "" {
+		return c.searchPublic(ctx, req)
+	}
 
-	// Marshal to JSON
-	payload, err := json.Marshal(query)
+	payload, err := json.Marshal(c.buildQuery(req))
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal query: %w", err)
 	}
 
-	// Determine endpoint based on auth token presence
-	endpoint := publicSearchEndpoint
-	var authToken string
-	if token, ok := ctx.Value(authTokenContextKey).(string); ok && token != "" {
-		endpoint = intranetSearchEndpoint
-		authToken = token
-		c.logger.Debug("using authenticated intranet search endpoint")
-	}
-
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.intranetEndpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+	c.logger.Debug("using authenticated intranet search endpoint")
 
-	// Add auth token if present
-	if authToken != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+authToken)
-		c.logger.Debug("auth token added to search request")
+	return c.do(httpReq)
+}
+
+// searchPublic searches docs, handbook and blog through the public search
+// gateway at docs.giantswarm.io/searchapi/.
+func (c *Client) searchPublic(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
+	// The public gateway never serves the intranet: answer with no results,
+	// as the public index did before.
+	if req.TypeFilter == "Intranet" {
+		return &SearchResponse{}, nil
+	}
+	if len([]rune(req.Term)) > publicMaxTermLength {
+		return nil, fmt.Errorf("search term is longer than %d characters", publicMaxTermLength)
+	}
+	if len(req.BreadcrumbFilter) > publicMaxBreadcrumbs {
+		return nil, fmt.Errorf("breadcrumb_filter has more than %d segments", publicMaxBreadcrumbs)
+	}
+	if req.StartIndex < 0 || req.StartIndex > publicMaxStartIndex {
+		return nil, fmt.Errorf("start_index must be between 0 and %d", publicMaxStartIndex)
+	}
+	size := req.Size
+	if size < 1 {
+		size = 1
+	}
+	if size > publicMaxSize {
+		size = publicMaxSize
 	}
 
-	// Execute request
+	params := url.Values{}
+	params.Set("q", req.Term)
+	if req.TypeFilter != "" {
+		params.Set("type", req.TypeFilter)
+	}
+	for _, b := range req.BreadcrumbFilter {
+		params.Add("breadcrumb", b)
+	}
+	params.Set("from", strconv.Itoa(req.StartIndex))
+	params.Set("size", strconv.Itoa(size))
+	if req.RequireAllTerms {
+		params.Set("match", "all")
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.publicEndpoint+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Accept", "application/json")
+
+	return c.do(httpReq)
+}
+
+// do sends a search request and decodes the OpenSearch-shaped response.
+func (c *Client) do(httpReq *http.Request) (*SearchResponse, error) {
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search: %w", err)
