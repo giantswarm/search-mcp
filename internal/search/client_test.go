@@ -113,6 +113,10 @@ func TestSearchPublicRejectsOutOfRangeRequests(t *testing.T) {
 		"breadcrumbs":     {Term: "x", Size: 10, BreadcrumbFilter: []string{"a", "b", "c", "d", "e", "f"}},
 		"start too large": {Term: "x", Size: 10, StartIndex: 1001},
 		"negative start":  {Term: "x", Size: 10, StartIndex: -1},
+		"blank term":      {Term: "   ", Size: 10},
+		"unknown type":    {Term: "x", Size: 10, TypeFilter: "documentation"},
+		"empty segment":   {Term: "x", Size: 10, BreadcrumbFilter: []string{""}},
+		"long segment":    {Term: "x", Size: 10, BreadcrumbFilter: []string{strings.Repeat("a", 101)}},
 	}
 	for name, req := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -25,10 +25,11 @@ const (
 // Limits of the public search gateway at docs.giantswarm.io/searchapi/. It
 // refuses requests outside them.
 const (
-	publicMaxSize        = 50
-	publicMaxStartIndex  = 1000
-	publicMaxBreadcrumbs = 5
-	publicMaxTermLength  = 200
+	publicMaxSize             = 50
+	publicMaxStartIndex       = 1000
+	publicMaxBreadcrumbs      = 5
+	publicMaxBreadcrumbLength = 100
+	publicMaxTermLength       = 200
 )
 
 // Elasticsearch query keys and field names reused across query construction.
@@ -98,11 +99,25 @@ func (c *Client) searchPublic(ctx context.Context, req SearchRequest) (*SearchRe
 	if req.TypeFilter == "Intranet" {
 		return &SearchResponse{}, nil
 	}
-	if len([]rune(req.Term)) > publicMaxTermLength {
+	term := strings.TrimSpace(req.Term)
+	if term == "" {
+		return nil, fmt.Errorf("search term is empty")
+	}
+	if len([]rune(term)) > publicMaxTermLength {
 		return nil, fmt.Errorf("search term is longer than %d characters", publicMaxTermLength)
+	}
+	switch req.TypeFilter {
+	case "", "Documentation", "Handbook", "Blog":
+	default:
+		return nil, fmt.Errorf("type_filter must be one of Documentation, Handbook, Blog or Intranet, exact case")
 	}
 	if len(req.BreadcrumbFilter) > publicMaxBreadcrumbs {
 		return nil, fmt.Errorf("breadcrumb_filter has more than %d segments", publicMaxBreadcrumbs)
+	}
+	for _, b := range req.BreadcrumbFilter {
+		if n := len([]rune(b)); n == 0 || n > publicMaxBreadcrumbLength {
+			return nil, fmt.Errorf("each breadcrumb_filter segment must be 1 to %d characters", publicMaxBreadcrumbLength)
+		}
 	}
 	if req.StartIndex < 0 || req.StartIndex > publicMaxStartIndex {
 		return nil, fmt.Errorf("start_index must be between 0 and %d", publicMaxStartIndex)
@@ -116,7 +131,7 @@ func (c *Client) searchPublic(ctx context.Context, req SearchRequest) (*SearchRe
 	}
 
 	params := url.Values{}
-	params.Set("q", req.Term)
+	params.Set("q", term)
 	if req.TypeFilter != "" {
 		params.Set("type", req.TypeFilter)
 	}
