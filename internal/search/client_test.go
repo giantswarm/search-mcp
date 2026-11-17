@@ -2,7 +2,6 @@ package search
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,6 +17,7 @@ const testSearchResponse = `{"hits":{"total":{"value":1},"hits":[{"_source":{"ti
 // recordedRequest is what a test server saw.
 type recordedRequest struct {
 	method string
+	path   string
 	query  url.Values
 	body   string
 	auth   string
@@ -28,7 +28,7 @@ func newTestClient(t *testing.T) (*Client, *recordedRequest) {
 	seen := &recordedRequest{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		*seen = recordedRequest{method: r.Method, query: r.URL.Query(), body: string(body), auth: r.Header.Get("Authorization")}
+		*seen = recordedRequest{method: r.Method, path: r.URL.Path, query: r.URL.Query(), body: string(body), auth: r.Header.Get("Authorization")}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, testSearchResponse)
 	}))
@@ -65,12 +65,12 @@ func TestSearchPublicSendsOnlyQueryParameters(t *testing.T) {
 		t.Errorf("Authorization = %q, want none", seen.auth)
 	}
 	want := url.Values{
-		"q":          {"node pools"},
-		"type":       {"Documentation"},
-		"breadcrumb": {"tutorials", "node-pools"},
-		"from":       {"10"},
-		"size":       {"5"},
-		"match":      {"all"},
+		"q":              {"node pools"},
+		"type":           {"Documentation"},
+		"breadcrumb":     {"tutorials", "node-pools"},
+		gatewayParamFrom: {"10"},
+		gatewayParamSize: {"5"},
+		"match":          {"all"},
 	}
 	if !reflect.DeepEqual(seen.query, want) {
 		t.Errorf("query = %v, want %v", seen.query, want)
@@ -86,7 +86,7 @@ func TestSearchPublicDefaults(t *testing.T) {
 	if _, err := c.Search(context.Background(), SearchRequest{Term: "x", Size: 500}); err != nil {
 		t.Fatal(err)
 	}
-	want := url.Values{"q": {"x"}, "from": {"0"}, "size": {"50"}}
+	want := url.Values{"q": {"x"}, gatewayParamFrom: {"0"}, gatewayParamSize: {"50"}}
 	if !reflect.DeepEqual(seen.query, want) {
 		t.Errorf("query = %v, want %v", seen.query, want)
 	}
@@ -95,7 +95,7 @@ func TestSearchPublicDefaults(t *testing.T) {
 func TestSearchPublicIntranetTypeReturnsNothing(t *testing.T) {
 	c, seen := newTestClient(t)
 
-	resp, err := c.Search(context.Background(), SearchRequest{Term: "x", Size: 10, TypeFilter: "Intranet"})
+	resp, err := c.Search(context.Background(), SearchRequest{Term: "x", Size: 10, TypeFilter: typeIntranet})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,24 +131,34 @@ func TestSearchPublicRejectsOutOfRangeRequests(t *testing.T) {
 	}
 }
 
-func TestSearchSignedInPostsQueryToIntranet(t *testing.T) {
+func TestSearchSignedInUsesIntranetGateway(t *testing.T) {
 	c, seen := newTestClient(t)
 	ctx := context.WithValue(context.Background(), authTokenContextKey, "token")
 
-	if _, err := c.Search(ctx, SearchRequest{Term: "runbook", Size: 10, TypeFilter: "Intranet"}); err != nil {
+	if _, err := c.Search(ctx, SearchRequest{Term: "runbook", Size: 10, TypeFilter: typeIntranet,
+		BreadcrumbFilter: []string{"support-and-ops", "runbooks"}}); err != nil {
 		t.Fatal(err)
 	}
-	if seen.method != http.MethodPost {
-		t.Errorf("method = %s, want POST", seen.method)
+	if seen.method != http.MethodGet {
+		t.Errorf("method = %s, want GET", seen.method)
+	}
+	if seen.body != "" {
+		t.Errorf("body = %q, want none", seen.body)
 	}
 	if seen.auth != "Bearer token" {
 		t.Errorf("Authorization = %q", seen.auth)
 	}
-	var q map[string]interface{}
-	if err := json.Unmarshal([]byte(seen.body), &q); err != nil {
-		t.Fatalf("body is not a JSON query: %v", err)
+	if seen.path != "/intranet/searchapi/" {
+		t.Errorf("path = %s, want the intranet endpoint", seen.path)
 	}
-	if _, ok := q["query"]; !ok {
-		t.Errorf("body has no query: %s", seen.body)
+	want := url.Values{
+		"q":              {"runbook"},
+		"type":           {typeIntranet},
+		"breadcrumb":     {"support-and-ops", "runbooks"},
+		gatewayParamFrom: {"0"},
+		gatewayParamSize: {"10"},
+	}
+	if !reflect.DeepEqual(seen.query, want) {
+		t.Errorf("query = %v, want %v", seen.query, want)
 	}
 }

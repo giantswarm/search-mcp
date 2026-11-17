@@ -59,7 +59,8 @@ The Go implementation uses the standard `net/http` package which:
 
 - **Public endpoint** (`docs.giantswarm.io/searchapi/`): No authentication required. A search gateway that takes only query parameters, never a query body.
 - **Handbook** (`handbook.giantswarm.io`): Public access
-- **Intranet** (`intranet.giantswarm.io`): May require authentication (not currently supported)
+- **Intranet search endpoint** (`intranet-searchmcp.giantswarm.io/searchapi/`): Requires a sign-in token (Dex JWT, checked by the Envoy gateway). The intranet's search gateway, which also takes only query parameters, never a query body.
+- **Intranet pages** (`intranet.giantswarm.io`, read through `intranet-searchmcp.giantswarm.io`): Require a sign-in token
 
 ## Data Privacy
 

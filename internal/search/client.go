@@ -1,7 +1,6 @@
 package search
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,27 +21,28 @@ const (
 	fetchTimeout           = 60 * time.Second
 )
 
-// Limits of the public search gateway at docs.giantswarm.io/searchapi/. It
-// refuses requests outside them.
+// Limits of the search gateways (docs.giantswarm.io/searchapi/ and the
+// intranet's). They refuse requests outside them.
 const (
-	publicMaxSize             = 50
-	publicMaxStartIndex       = 1000
-	publicMaxBreadcrumbs      = 5
-	publicMaxBreadcrumbLength = 100
-	publicMaxTermLength       = 200
+	gatewayMaxSize             = 50
+	gatewayMaxStartIndex       = 1000
+	gatewayMaxBreadcrumbs      = 5
+	gatewayMaxBreadcrumbLength = 100
+	gatewayMaxTermLength       = 200
 )
 
-// Elasticsearch query keys and field names reused across query construction.
+// Query parameters of the search gateways.
 const (
-	esKeyQuery  = "query"
-	esKeyFilter = "filter"
-	esKeyTerm   = "term"
-	esKeyType   = "type"
-	esKeyFields = "fields"
-	esKeyWeight = "weight"
-	esFieldBody = "body"
-	esFieldText = "text"
+	gatewayParamFrom = "from"
+	gatewayParamSize = paramSize
 )
+
+// typeIntranet is the type of intranet pages, which only the intranet's
+// gateway serves.
+const typeIntranet = "Intranet"
+
+// esFieldBody is the highlight field the result excerpts come from.
+const esFieldBody = "body"
 
 // Client handles search operations
 type Client struct {
@@ -64,70 +64,56 @@ func NewClient(logger *slog.Logger) *Client {
 	}
 }
 
-// Search performs a search query against the Giant Swarm documentation.
-// With a sign-in token it sends an OpenSearch query to the intranet endpoint.
-// Without one it uses the public search gateway, which takes only a few
-// query parameters and never a query body.
+// Search searches the Giant Swarm documentation through a search gateway,
+// which takes only a few query parameters and never a query body. With a
+// sign-in token it uses the intranet's gateway, which also serves intranet
+// pages; without one, the public gateway at docs.giantswarm.io/searchapi/.
 func (c *Client) Search(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
 	token, _ := ctx.Value(authTokenContextKey).(string)
 	if token == "" {
-		return c.searchPublic(ctx, req)
+		// The public gateway never serves the intranet: answer with no
+		// results, as the public index did before.
+		if req.TypeFilter == typeIntranet {
+			return &SearchResponse{}, nil
+		}
+		return c.searchGateway(ctx, c.publicEndpoint, "", req)
 	}
-
-	payload, err := json.Marshal(c.buildQuery(req))
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal query: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.intranetEndpoint, bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+token)
 	c.logger.Debug("using authenticated intranet search endpoint")
-
-	return c.do(httpReq)
+	return c.searchGateway(ctx, c.intranetEndpoint, token, req)
 }
 
-// searchPublic searches docs, handbook and blog through the public search
-// gateway at docs.giantswarm.io/searchapi/.
-func (c *Client) searchPublic(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
-	// The public gateway never serves the intranet: answer with no results,
-	// as the public index did before.
-	if req.TypeFilter == "Intranet" {
-		return &SearchResponse{}, nil
-	}
+// searchGateway sends a search as query parameters to a search gateway,
+// checking it against the gateway's limits first.
+func (c *Client) searchGateway(ctx context.Context, endpoint, token string, req SearchRequest) (*SearchResponse, error) {
 	term := strings.TrimSpace(req.Term)
 	if term == "" {
 		return nil, fmt.Errorf("search term is empty")
 	}
-	if len([]rune(term)) > publicMaxTermLength {
-		return nil, fmt.Errorf("search term is longer than %d characters", publicMaxTermLength)
+	if len([]rune(term)) > gatewayMaxTermLength {
+		return nil, fmt.Errorf("search term is longer than %d characters", gatewayMaxTermLength)
 	}
 	switch req.TypeFilter {
-	case "", "Documentation", "Handbook", "Blog":
+	case "", "Documentation", "Handbook", "Blog", typeIntranet:
 	default:
 		return nil, fmt.Errorf("type_filter must be one of Documentation, Handbook, Blog or Intranet, exact case")
 	}
-	if len(req.BreadcrumbFilter) > publicMaxBreadcrumbs {
-		return nil, fmt.Errorf("breadcrumb_filter has more than %d segments", publicMaxBreadcrumbs)
+	if len(req.BreadcrumbFilter) > gatewayMaxBreadcrumbs {
+		return nil, fmt.Errorf("breadcrumb_filter has more than %d segments", gatewayMaxBreadcrumbs)
 	}
 	for _, b := range req.BreadcrumbFilter {
-		if n := len([]rune(b)); n == 0 || n > publicMaxBreadcrumbLength {
-			return nil, fmt.Errorf("each breadcrumb_filter segment must be 1 to %d characters", publicMaxBreadcrumbLength)
+		if n := len([]rune(b)); n == 0 || n > gatewayMaxBreadcrumbLength {
+			return nil, fmt.Errorf("each breadcrumb_filter segment must be 1 to %d characters", gatewayMaxBreadcrumbLength)
 		}
 	}
-	if req.StartIndex < 0 || req.StartIndex > publicMaxStartIndex {
-		return nil, fmt.Errorf("start_index must be between 0 and %d", publicMaxStartIndex)
+	if req.StartIndex < 0 || req.StartIndex > gatewayMaxStartIndex {
+		return nil, fmt.Errorf("start_index must be between 0 and %d", gatewayMaxStartIndex)
 	}
 	size := req.Size
 	if size < 1 {
 		size = 1
 	}
-	if size > publicMaxSize {
-		size = publicMaxSize
+	if size > gatewayMaxSize {
+		size = gatewayMaxSize
 	}
 
 	params := url.Values{}
@@ -138,17 +124,20 @@ func (c *Client) searchPublic(ctx context.Context, req SearchRequest) (*SearchRe
 	for _, b := range req.BreadcrumbFilter {
 		params.Add("breadcrumb", b)
 	}
-	params.Set("from", strconv.Itoa(req.StartIndex))
-	params.Set("size", strconv.Itoa(size))
+	params.Set(gatewayParamFrom, strconv.Itoa(req.StartIndex))
+	params.Set(gatewayParamSize, strconv.Itoa(size))
 	if req.RequireAllTerms {
 		params.Set("match", "all")
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.publicEndpoint+"?"+params.Encode(), nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Accept", "application/json")
+	if token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	return c.do(httpReq)
 }
@@ -246,110 +235,6 @@ func (c *Client) FetchURL(ctx context.Context, url string) (string, error) {
 	}
 
 	return string(body), nil
-}
-
-// buildQuery constructs an Elasticsearch/OpenSearch query from a SearchRequest
-func (c *Client) buildQuery(req SearchRequest) ElasticsearchQuery {
-	// Build the inner query based on matching mode
-	var innerQuery map[string]interface{}
-	if req.RequireAllTerms {
-		// Strict AND mode: all search terms must be present
-		innerQuery = map[string]interface{}{
-			"simple_query_string": map[string]interface{}{
-				esKeyFields:        []string{"title^5", esFieldBody, esFieldText},
-				"default_operator": "AND",
-				esKeyQuery:         req.Term,
-			},
-		}
-	} else {
-		// Default similarity mode: documents are ranked by how well they
-		// match the search terms, without requiring all terms to be present.
-		innerQuery = map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				esKeyQuery:             req.Term,
-				esKeyFields:            []string{"title^5", esFieldBody, esFieldText},
-				esKeyType:              "best_fields",
-				"operator":             "or",
-				"minimum_should_match": "30%",
-				"tie_breaker":          0.3,
-			},
-		}
-	}
-
-	// Wrap in function_score for type/breadcrumb boosting
-	baseQuery := map[string]interface{}{
-		"function_score": map[string]interface{}{
-			esKeyQuery: innerQuery,
-			"functions": []map[string]interface{}{
-				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{esKeyType: "Intranet"}}, esKeyWeight: 10},
-				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{esKeyType: "Blog"}}, esKeyWeight: 0.01},
-				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{"breadcrumb": "changes"}}, esKeyWeight: 0.0001},
-				{esKeyFilter: map[string]interface{}{esKeyTerm: map[string]string{"breadcrumb": "api"}}, esKeyWeight: 0.0001},
-			},
-		},
-	}
-
-	// Apply filters if specified
-	var mustClauses []map[string]interface{}
-	mustClauses = append(mustClauses, baseQuery)
-
-	// Add type filter
-	if req.TypeFilter != "" {
-		mustClauses = append(mustClauses, map[string]interface{}{
-			esKeyTerm: map[string]string{esKeyType: req.TypeFilter},
-		})
-	}
-
-	// Add breadcrumb filters
-	// The index has both 'breadcrumb' (array) and 'breadcrumb_1', 'breadcrumb_2', etc. (positional strings)
-	// We use the positional fields to match specific positions in the hierarchy
-	// These are keyword fields, so we use 'term' queries for exact matching
-	if len(req.BreadcrumbFilter) > 0 {
-		for i, breadcrumb := range req.BreadcrumbFilter {
-			fieldName := fmt.Sprintf("breadcrumb_%d", i+1)
-			mustClauses = append(mustClauses, map[string]interface{}{
-				esKeyTerm: map[string]string{fieldName: breadcrumb},
-			})
-		}
-	}
-
-	// Build final query
-	var finalQuery map[string]interface{}
-	if len(mustClauses) > 1 {
-		finalQuery = map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": mustClauses,
-			},
-		}
-	} else {
-		finalQuery = baseQuery
-	}
-
-	return ElasticsearchQuery{
-		From: req.StartIndex,
-		Size: req.Size,
-		Sort: []string{"_score"},
-		Source: map[string][]string{
-			"excludes": {esFieldText, esFieldBody},
-		},
-		Query: finalQuery,
-		Highlight: map[string]interface{}{
-			"pre_tags":  []string{"**"},
-			"post_tags": []string{"**"},
-			esKeyFields: map[string]interface{}{
-				esFieldBody: map[string]interface{}{
-					esKeyType:             "unified",
-					"number_of_fragments": 1,
-					"no_match_size":       200,
-					"fragment_size":       150,
-				},
-				"title": map[string]interface{}{
-					esKeyType:             "unified",
-					"number_of_fragments": 1,
-				},
-			},
-		},
-	}
 }
 
 // FormatSearchResults formats search results as Markdown
