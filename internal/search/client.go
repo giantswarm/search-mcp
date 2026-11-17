@@ -152,10 +152,8 @@ func (c *Client) do(httpReq *http.Request) (*SearchResponse, error) {
 		_ = resp.Body.Close()
 	}()
 
-	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("search failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, searchError(resp)
 	}
 
 	// Parse response
@@ -167,6 +165,23 @@ func (c *Client) do(httpReq *http.Request) (*SearchResponse, error) {
 	c.logger.Debug("search results", "total", searchResp.Hits.Total, "returned", len(searchResp.Hits.Hits))
 
 	return &searchResp, nil
+}
+
+// maxErrorBody bounds how much of an error response goes into the error.
+const maxErrorBody = 300
+
+// searchError describes a failed search. The gateways' errors are short
+// JSON; anything else, such as the Envoy gateway's HTML error pages, is left
+// out so it doesn't end up in the tool result.
+func searchError(resp *http.Response) error {
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return fmt.Errorf("search is rate limited (status 429): wait a few seconds and try again")
+	}
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		return fmt.Errorf("search failed with status %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBody))
+	return fmt.Errorf("search failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 }
 
 // FetchURL fetches content from a URL
