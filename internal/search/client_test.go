@@ -162,3 +162,41 @@ func TestSearchSignedInUsesIntranetGateway(t *testing.T) {
 		t.Errorf("query = %v, want %v", seen.query, want)
 	}
 }
+
+func TestSearchErrors(t *testing.T) {
+	cases := map[string]struct {
+		status      int
+		contentType string
+		body        string
+		want        string
+		notWant     string
+	}{
+		"rate limited": {http.StatusTooManyRequests, "text/html", "<html>error page</html>", "rate limited", "<html>"},
+		"html error":   {http.StatusBadGateway, "text/html", "<html>error page</html>", "status 502", "<html>"},
+		"json error": {http.StatusBadRequest, "application/json", `{"error":"q is required"}`,
+			`status 400: {"error":"q is required"}`, ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", tc.contentType)
+				w.WriteHeader(tc.status)
+				_, _ = io.WriteString(w, tc.body)
+			}))
+			t.Cleanup(srv.Close)
+			c := NewClient(slog.New(slog.NewTextHandler(io.Discard, nil)))
+			c.publicEndpoint = srv.URL + "/searchapi/"
+
+			_, err := c.Search(context.Background(), SearchRequest{Term: "x", Size: 10})
+			if err == nil {
+				t.Fatal("want an error")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error %q does not contain %q", err, tc.want)
+			}
+			if tc.notWant != "" && strings.Contains(err.Error(), tc.notWant) {
+				t.Errorf("error %q contains %q", err, tc.notWant)
+			}
+		})
+	}
+}
