@@ -145,20 +145,20 @@ func TestSearchTermsAreNotStrictByDefault(t *testing.T) {
 		request := mcp.CallToolRequest{}
 		request.Params.Name = name
 		request.Params.Arguments = map[string]any{paramTerm: "two terms"}
-		result, err := handler(signedIn, request)
-		if err != nil || result.IsError {
-			t.Fatalf("%s: %v %v", name, err, result)
-		}
-		if !strings.Contains(recorder.body, "multi_match") || strings.Contains(recorder.body, "simple_query_string") {
-			t.Errorf("%s without require_all_terms is not ranked by similarity (#111: %s): %s", name, why, recorder.body)
-		}
+		contexts := map[string]context.Context{"with sign-in": signedIn}
 		if name != runbookTool {
-			result, err = handler(context.Background(), request)
+			contexts["without sign-in"] = context.Background()
+		}
+		for how, ctx := range contexts {
+			result, err := handler(ctx, request)
 			if err != nil || result.IsError {
-				t.Fatalf("%s without sign-in: %v %v", name, err, result)
+				t.Fatalf("%s %s: %v %v", name, how, err, result)
+			}
+			if recorder.query.Get("q") != "two terms" {
+				t.Fatalf("%s %s sent no search: %v", name, how, recorder.query)
 			}
 			if recorder.query.Has("match") {
-				t.Errorf("%s without sign-in and require_all_terms asks for match=%s (#111: %s)", name, recorder.query.Get("match"), why)
+				t.Errorf("%s %s without require_all_terms asks for match=%s (#111: %s)", name, how, recorder.query.Get("match"), why)
 			}
 		}
 

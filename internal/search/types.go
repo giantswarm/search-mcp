@@ -61,13 +61,3 @@ type HitSource struct {
 	Type        string   `json:"type"`
 	Breadcrumb  []string `json:"breadcrumb,omitempty"`
 }
-
-// ElasticsearchQuery represents the Elasticsearch/OpenSearch query structure
-type ElasticsearchQuery struct {
-	From      int                    `json:"from"`
-	Size      int                    `json:"size"`
-	Sort      []string               `json:"sort"`
-	Source    map[string][]string    `json:"_source"`
-	Query     map[string]interface{} `json:"query"`
-	Highlight map[string]interface{} `json:"highlight"`
-}
