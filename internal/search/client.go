@@ -93,11 +93,7 @@ func (c *Client) searchGateway(ctx context.Context, endpoint, token string, req 
 		return nil, fmt.Errorf("search term is longer than %d characters", gatewayMaxTermLength)
 	}
 	switch req.TypeFilter {
-	case "", "Documentation", "Handbook", "Blog":
-	case typeIntranet:
-		if token == "" {
-			return &SearchResponse{}, nil
-		}
+	case "", "Documentation", "Handbook", "Blog", typeIntranet:
 	default:
 		return nil, fmt.Errorf("type_filter must be one of Documentation, Handbook, Blog or Intranet, exact case")
 	}
